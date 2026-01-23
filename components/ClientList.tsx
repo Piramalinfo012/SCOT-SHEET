@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { Client } from '../types';
 import { getStatusColor, isOverdue, parseDateString } from '../utils';
-import { subDays, isSameDay, parse, format } from 'date-fns';
+import { subDays, addDays, isSameDay, parse, format } from 'date-fns';
 
 interface ClientListProps {
   clients: Client[];
@@ -62,14 +62,14 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSelectClient, loadin
         if (!client.nextFollowUpDate || client.nextFollowUpDate === 'N/A') matchesStatus = false;
         else {
           const d = parse(client.nextFollowUpDate, 'dd/MM/yyyy', new Date());
-          matchesStatus = isSameDay(d, subDays(new Date(), 7));
+          matchesStatus = isSameDay(d, addDays(new Date(), 7));
         }
       }
       else if (statusFilter === '10days_before') {
         if (!client.nextFollowUpDate || client.nextFollowUpDate === 'N/A') matchesStatus = false;
         else {
           const d = parse(client.nextFollowUpDate, 'dd/MM/yyyy', new Date());
-          matchesStatus = isSameDay(d, subDays(new Date(), 10));
+          matchesStatus = isSameDay(d, addDays(new Date(), 10));
         }
       }
 
