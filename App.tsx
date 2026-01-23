@@ -5,7 +5,7 @@ import { Client, OrderLog, Tab, DashboardStats } from './types';
 import DashboardCard from './components/DashboardCard';
 import ClientList from './components/ClientList';
 import FollowUpModal from './components/FollowUpModal';
-import { isOverdue, isUpcoming, formatDateString, parseDateString } from './utils';
+import { isOverdue, isUpcoming, formatDateString } from './utils';
 import { 
   format, 
   startOfMonth, 
@@ -16,8 +16,8 @@ import {
   endOfWeek, 
   isSameMonth,
   isToday,
-  subMonths,
-  addMonths
+  parse,
+  isValid
 } from 'date-fns';
 
 const App: React.FC = () => {
@@ -36,7 +36,7 @@ const App: React.FC = () => {
   const fetchData = async () => {
     const url = localStorage.getItem('APPS_SCRIPT_URL')?.trim();
     if (!url) {
-      setError("Please configure the Apps Script URL in Settings.");
+      setError("System is not connected. Please go to Settings and paste your Google Apps Script URL.");
       setLoading(false);
       return;
     }
@@ -45,11 +45,11 @@ const App: React.FC = () => {
     setError(null);
     try {
       const data = await GoogleSheetsService.fetchClients();
-      // FIX: Defensive coding to prevent "undefined reading filter" errors
-      setClients(data?.clients || []);
-      setLogs(data?.logs || []);
+      // Ensure data structure is correct before setting state
+      setClients(Array.isArray(data?.clients) ? data.clients : []);
+      setLogs(Array.isArray(data?.logs) ? data.logs : []);
     } catch (err: any) {
-      setError(err.message || "Failed to fetch data. Please check your URL and connection.");
+      setError(err.message || "Failed to fetch data. Please check your URL and internet connection.");
       setClients([]);
       setLogs([]);
     } finally {
@@ -63,40 +63,57 @@ const App: React.FC = () => {
 
   // Derived unique months from data for filter dropdown
   const uniqueMonths = useMemo(() => {
-    const dates = [new Date()]; // Include current month
-    if (logs) {
+    const dates = [new Date()]; // Always include current month
+    if (Array.isArray(logs)) {
       logs.forEach(l => {
-        const d = new Date(l.timestamp);
-        if (!isNaN(d.getTime())) dates.push(d);
+        if (l.timestamp) {
+          const d = new Date(l.timestamp);
+          if (isValid(d)) dates.push(d);
+        }
       });
     }
     const months = dates.map(d => format(d, 'MMMM yyyy'));
-    return Array.from(new Set(months)).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+    // Sort descending by date
+    return Array.from(new Set(months)).sort((a, b) => {
+      const dateA = parse(a, 'MMMM yyyy', new Date());
+      const dateB = parse(b, 'MMMM yyyy', new Date());
+      return dateB.getTime() - dateA.getTime();
+    });
   }, [logs]);
 
   // Calendar Logic
   const calendarDays = useMemo(() => {
-    const monthDate = new Date(selectedMonth);
-    if (isNaN(monthDate.getTime())) return [];
-    const start = startOfWeek(startOfMonth(monthDate));
-    const end = endOfWeek(endOfMonth(monthDate));
-    return eachDayOfInterval({ start, end });
+    try {
+      const monthDate = parse(selectedMonth, 'MMMM yyyy', new Date());
+      if (!isValid(monthDate)) return [];
+      const start = startOfWeek(startOfMonth(monthDate));
+      const end = endOfWeek(endOfMonth(monthDate));
+      return eachDayOfInterval({ start, end });
+    } catch (e) {
+      console.error("Calendar generation failed", e);
+      return [];
+    }
   }, [selectedMonth]);
 
   // Party specific orders for calendar
   const partyOrders = useMemo(() => {
-    if (selectedPartyId === 'all') return [];
+    if (selectedPartyId === 'all' || !Array.isArray(logs)) return [];
     return logs.filter(l => l.id === selectedPartyId && l.orderStatus === 'RECIEVED');
   }, [logs, selectedPartyId]);
 
   // Calculate dashboard statistics
   const stats: DashboardStats = useMemo(() => {
-    const safeClients = clients || [];
-    const safeLogs = logs || [];
+    const safeClients = Array.isArray(clients) ? clients : [];
+    const safeLogs = Array.isArray(logs) ? logs : [];
     const todayStr = formatDateString(new Date());
 
     // Filter logs by selected month for order stats
-    const monthLogs = safeLogs.filter(l => format(new Date(l.timestamp), 'MMMM yyyy') === selectedMonth);
+    const monthLogs = safeLogs.filter(l => {
+      if (!l.timestamp) return false;
+      const logDate = new Date(l.timestamp);
+      return isValid(logDate) && format(logDate, 'MMMM yyyy') === selectedMonth;
+    });
+    
     const monthOrders = monthLogs.filter(l => l.orderStatus === 'RECIEVED').length;
 
     const overdueCount = safeClients.filter(c => isOverdue(c.nextFollowUpDate)).length;
@@ -105,7 +122,8 @@ const App: React.FC = () => {
     const completedToday = safeLogs.filter(l => {
       try {
         if (!l.timestamp) return false;
-        return formatDateString(new Date(l.timestamp)) === todayStr;
+        const logDate = new Date(l.timestamp);
+        return isValid(logDate) && formatDateString(logDate) === todayStr;
       } catch { return false; }
     }).length;
 
@@ -123,6 +141,7 @@ const App: React.FC = () => {
   const handleUpdateClient = async (updatedData: Client) => {
     try {
       await GoogleSheetsService.updateClient(updatedData);
+      // Brief delay to allow Google Sheets to process
       setTimeout(() => fetchData(), 1000);
       setSelectedClient(null);
     } catch (err: any) {
@@ -131,9 +150,12 @@ const App: React.FC = () => {
   };
 
   const handleSaveSettings = () => {
-    localStorage.setItem('APPS_SCRIPT_URL', scriptUrl);
-    fetchData();
-    setActiveTab('dashboard');
+    const trimmedUrl = scriptUrl.trim();
+    if (trimmedUrl) {
+      localStorage.setItem('APPS_SCRIPT_URL', trimmedUrl);
+      fetchData();
+      setActiveTab('dashboard');
+    }
   };
 
   return (
@@ -179,26 +201,27 @@ const App: React.FC = () => {
         {loading ? (
           <div className="flex flex-col items-center justify-center py-24 animate-pulse">
             <div className="h-12 w-12 rounded-full border-4 border-slate-200 border-t-indigo-600 animate-spin"></div>
-            <p className="text-slate-500 font-bold mt-4">Syncing data...</p>
+            <p className="text-slate-500 font-bold mt-4">Syncing data from Google Sheets...</p>
           </div>
         ) : (
           <>
             {activeTab === 'dashboard' && (
               <div className="space-y-8 animate-in fade-in duration-500">
                 {/* Global Month Filter */}
-                <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
+                <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                    <div className="flex items-center space-x-3">
                      <i className="fa-solid fa-filter text-indigo-500"></i>
                      <span className="text-xs font-black uppercase text-slate-400">Month Filter:</span>
                      <select 
-                        className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-1.5 text-xs font-bold outline-none"
+                        className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-1.5 text-xs font-bold outline-none cursor-pointer hover:border-indigo-300 transition-colors"
                         value={selectedMonth}
                         onChange={(e) => setSelectedMonth(e.target.value)}
                      >
                        {uniqueMonths.map(m => <option key={m} value={m}>{m}</option>)}
                      </select>
                    </div>
-                   <div className="text-xs font-bold text-slate-400">
+                   <div className="text-xs font-bold text-slate-400 flex items-center bg-slate-50 px-3 py-1.5 rounded-full">
+                     <i className="fa-solid fa-calendar-check mr-2 text-indigo-400"></i>
                      Performance Report for {selectedMonth}
                    </div>
                 </div>
@@ -209,14 +232,14 @@ const App: React.FC = () => {
                     value={stats.totalOrdersReceived} 
                     icon="fa-shopping-bag" 
                     color="bg-indigo-500" 
-                    description={`Total "RECIEVED" in ${selectedMonth}`}
+                    description={`Orders "RECIEVED" in ${selectedMonth}`}
                   />
                   <DashboardCard 
                     title="Conversion" 
                     value={Math.round(stats.conversionRate)} 
                     icon="fa-percentage" 
                     color="bg-emerald-500" 
-                    description="% of calls leading to orders"
+                    description="% of month calls leading to orders"
                   />
                   <DashboardCard 
                     title="Today's Goal" 
@@ -248,11 +271,11 @@ const App: React.FC = () => {
                        <div className="flex items-center space-x-3">
                          <span className="text-[10px] font-black uppercase text-slate-400">Select Party:</span>
                          <select 
-                            className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold outline-none max-w-[200px]"
+                            className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold outline-none max-w-[200px] cursor-pointer"
                             value={selectedPartyId}
                             onChange={(e) => setSelectedPartyId(e.target.value)}
                          >
-                           <option value="all">Select Party...</option>
+                           <option value="all">-- Select Party --</option>
                            {(clients || []).map(c => <option key={c.id} value={c.id}>{c.clientName}</option>)}
                          </select>
                        </div>
@@ -263,7 +286,8 @@ const App: React.FC = () => {
                         <div key={day} className="text-center text-[10px] font-black text-slate-400 uppercase py-2">{day}</div>
                       ))}
                       {calendarDays.map((day, idx) => {
-                        const isCurrentMonth = isSameMonth(day, new Date(selectedMonth));
+                        const monthDate = parse(selectedMonth, 'MMMM yyyy', new Date());
+                        const isCurrentMonth = isSameMonth(day, monthDate);
                         const hasOrder = partyOrders.some(l => isSameDay(new Date(l.timestamp), day));
                         const isDayToday = isToday(day);
                         
@@ -284,6 +308,12 @@ const App: React.FC = () => {
                         );
                       })}
                     </div>
+                    {selectedPartyId === 'all' && (
+                      <div className="mt-4 p-4 bg-indigo-50 rounded-xl border border-indigo-100 flex items-center space-x-3">
+                        <i className="fa-solid fa-circle-info text-indigo-500"></i>
+                        <p className="text-xs font-medium text-indigo-700">Select a party from the dropdown above to see their specific order dates in this calendar.</p>
+                      </div>
+                    )}
                   </div>
 
                   {/* Recent Logs List */}
@@ -292,19 +322,24 @@ const App: React.FC = () => {
                       <i className="fa-solid fa-history mr-3 text-indigo-600"></i>
                       Recent Logs
                     </h2>
-                    <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 scrollbar-hide">
-                      {(logs || []).slice(-8).reverse().map((log, idx) => (
-                        <div key={idx} className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                          <div className="flex justify-between items-start mb-1">
-                            <span className="text-[10px] font-black text-slate-800 uppercase">{log.clientName}</span>
-                            <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase ${log.orderStatus === 'RECIEVED' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'}`}>
-                              {log.orderStatus}
-                            </span>
+                    <div className="space-y-4 max-h-[460px] overflow-y-auto pr-2 scrollbar-hide">
+                      {(logs || []).slice(-10).reverse().map((log, idx) => {
+                        const logDate = new Date(log.timestamp);
+                        return (
+                          <div key={idx} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 hover:border-indigo-200 transition-colors">
+                            <div className="flex justify-between items-start mb-1">
+                              <span className="text-[10px] font-black text-slate-800 uppercase line-clamp-1 flex-1">{log.clientName}</span>
+                              <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase ml-2 ${log.orderStatus === 'RECIEVED' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'}`}>
+                                {log.orderStatus}
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-slate-500 italic mb-1 line-clamp-2">"{log.remark || 'No remark provided'}"</p>
+                            <p className="text-[9px] font-bold text-slate-400">
+                              {isValid(logDate) ? format(logDate, 'MMM d, h:mm a') : 'Invalid date'}
+                            </p>
                           </div>
-                          <p className="text-[10px] text-slate-500 italic mb-1">"{log.remark || 'No remark'}"</p>
-                          <p className="text-[9px] font-bold text-slate-400">{format(new Date(log.timestamp), 'MMM d, h:mm a')}</p>
-                        </div>
-                      ))}
+                        );
+                      })}
                       {(!logs || logs.length === 0) && (
                         <div className="text-center py-12 text-slate-400">
                           <i className="fa-solid fa-ghost text-2xl mb-2 opacity-20"></i>
@@ -324,24 +359,43 @@ const App: React.FC = () => {
             )}
 
             {activeTab === 'settings' && (
-              <div className="max-w-2xl mx-auto bg-white p-10 rounded-3xl border border-slate-200 shadow-xl mt-10">
-                <h2 className="text-2xl font-black text-slate-800 mb-8">Connection Settings</h2>
+              <div className="max-w-2xl mx-auto bg-white p-10 rounded-3xl border border-slate-200 shadow-xl mt-10 animate-in zoom-in-95 duration-300">
+                <h2 className="text-2xl font-black text-slate-800 mb-2">Connection Settings</h2>
+                <p className="text-sm text-slate-500 mb-8 font-medium">Link your SCOT CRM to your Google Sheet backend.</p>
                 <div className="space-y-6">
                   <div>
-                    <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-3">Google Apps Script URL</label>
-                    <input
-                      type="text"
-                      className="w-full px-4 py-4 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-indigo-600 outline-none text-sm font-bold"
-                      placeholder="https://script.google.com/macros/s/.../exec"
-                      value={scriptUrl}
-                      onChange={(e) => setScriptUrl(e.target.value)}
-                    />
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Google Apps Script Web App URL</label>
+                    <div className="relative">
+                       <input
+                         type="text"
+                         className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-indigo-600 outline-none text-sm font-bold transition-all"
+                         placeholder="https://script.google.com/macros/s/.../exec"
+                         value={scriptUrl}
+                         onChange={(e) => setScriptUrl(e.target.value)}
+                       />
+                       <i className="fa-solid fa-link absolute left-4 top-1/2 -translate-y-1/2 text-slate-300"></i>
+                    </div>
+                  </div>
+                  <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                    <h4 className="text-xs font-black uppercase text-slate-800 mb-3 flex items-center">
+                      <i className="fa-solid fa-circle-question mr-2 text-indigo-500"></i>
+                      How to get this URL?
+                    </h4>
+                    <ol className="text-xs font-medium text-slate-600 space-y-2 list-decimal ml-4">
+                      <li>Open your Google Sheet.</li>
+                      <li>Go to Extensions → Apps Script.</li>
+                      <li>Paste the provided script and save.</li>
+                      <li>Click "Deploy" → "New Deployment".</li>
+                      <li>Select "Web App", set "Execute as: Me" and "Who has access: Anyone".</li>
+                      <li>Copy the Web App URL and paste it here.</li>
+                    </ol>
                   </div>
                   <button
                     onClick={handleSaveSettings}
-                    className="w-full bg-indigo-600 text-white py-4 rounded-xl font-black text-sm uppercase tracking-widest hover:bg-indigo-700 shadow-lg shadow-indigo-600/20 active:scale-95 transition-all"
+                    className="w-full bg-indigo-600 text-white py-4 rounded-xl font-black text-sm uppercase tracking-widest hover:bg-indigo-700 shadow-lg shadow-indigo-600/20 active:scale-95 transition-all flex items-center justify-center space-x-3"
                   >
-                    Save & Reconnect
+                    <i className="fa-solid fa-cloud-bolt"></i>
+                    <span>Connect & Sync</span>
                   </button>
                 </div>
               </div>

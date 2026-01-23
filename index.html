@@ -11,14 +11,25 @@
     <style>
         body { font-family: 'Inter', sans-serif; }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
+        /* Add a simple loader for the blank screen state */
+        #root:empty::after {
+            content: "Loading SCOT CRM...";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-weight: bold;
+            color: #64748b;
+        }
     </style>
 <script type="importmap">
 {
   "imports": {
     "date-fns": "https://esm.sh/date-fns@^4.1.0",
     "recharts": "https://esm.sh/recharts@^3.6.0",
-    "react/": "https://esm.sh/react@^19.2.3/",
     "react": "https://esm.sh/react@^19.2.3",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react-dom": "https://esm.sh/react-dom@^19.2.3",
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
   }
 }
@@ -26,5 +37,7 @@
 </head>
 <body class="bg-slate-50 text-slate-900">
     <div id="root"></div>
+    <!-- Entry point script -->
+    <script src="index.tsx" type="module"></script>
 </body>
 </html>
