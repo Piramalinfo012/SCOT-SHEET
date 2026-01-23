@@ -16,23 +16,23 @@ export interface OrderLog {
 
 export interface Client {
   id: string;
-  rowIndex?: number; 
+  rowIndex?: number;
   crmName: string;
   clientName: string;
   number: string;
   contactPerson: string;
   productName: string;
-  averageOrderSize: number;
+  averageOrderSize: string;
   orderFrequency: string;
-  lastOrderDate: string; 
-  dateForCalling: string; 
-  frequencyOfCalling: number; 
-  update: string; 
-  lastCallingDate: string; 
-  nextFollowUpDate: string; 
+  lastOrderDate: string;
+  dateForCalling: string;
+  frequencyOfCalling: number;
+  update: string;
+  lastCallingDate: string;
+  nextFollowUpDate: string;
   remark: string;
-  orderStatus?: string; 
-  emailAddress?: string; 
+  orderStatus?: string;
+  emailAddress?: string;
 }
 
 export interface DashboardStats {
@@ -42,7 +42,14 @@ export interface DashboardStats {
   completedToday: number;
   upcoming7Days: number;
   totalOrdersReceived: number;
+  totalCalls: number;
   conversionRate: number;
 }
 
-export type Tab = 'dashboard' | 'clients' | 'settings';
+export interface User {
+  name: string;
+  username: string;
+  role: string;
+}
+
+export type Tab = 'dashboard' | 'clients';

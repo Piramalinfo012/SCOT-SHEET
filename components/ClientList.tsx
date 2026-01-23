@@ -6,6 +6,7 @@ import { getStatusColor, isOverdue, parseDateString } from '../utils';
 interface ClientListProps {
   clients: Client[];
   onSelectClient: (client: Client) => void;
+  loading?: boolean;
 }
 
 type SortKey = 'lastOrderDate' | 'nextFollowUpDate';
@@ -14,7 +15,7 @@ interface SortConfig {
   direction: 'asc' | 'desc';
 }
 
-const ClientList: React.FC<ClientListProps> = ({ clients, onSelectClient }) => {
+const ClientList: React.FC<ClientListProps> = ({ clients, onSelectClient, loading }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'overdue' | 'today'>('all');
   const [crmFilter, setCrmFilter] = useState<string>('all');
@@ -38,26 +39,26 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSelectClient }) => {
     // 1. Filter
     let result = clients.filter(client => {
       const term = searchTerm.toLowerCase();
-      
+
       const clientName = String(client.clientName || '').toLowerCase();
       const crmName = String(client.crmName || '').toLowerCase();
       const phoneNumber = String(client.number || '');
       const id = String(client.id || '').toLowerCase();
-      
-      const matchesSearch = 
+
+      const matchesSearch =
         clientName.includes(term) ||
         crmName.includes(term) ||
         phoneNumber.includes(searchTerm) ||
         id.includes(term);
-      
+
       const status = getStatusColor(client.nextFollowUpDate);
-      const matchesStatus = 
-        statusFilter === 'all' || 
-        (statusFilter === 'overdue' && status === 'red') || 
+      const matchesStatus =
+        statusFilter === 'all' ||
+        (statusFilter === 'overdue' && status === 'red') ||
         (statusFilter === 'today' && status === 'orange');
 
-      const matchesCrm = 
-        crmFilter === 'all' || 
+      const matchesCrm =
+        crmFilter === 'all' ||
         client.crmName === crmFilter;
 
       return matchesSearch && matchesStatus && matchesCrm;
@@ -68,7 +69,7 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSelectClient }) => {
       result.sort((a, b) => {
         const valA = a[sortConfig.key!];
         const valB = b[sortConfig.key!];
-        
+
         // Handle "N/A" or empty strings by treating them as very old dates
         const dateA = parseDateString(valA === 'N/A' || !valA ? '01/01/1970' : valA);
         const dateB = parseDateString(valB === 'N/A' || !valB ? '01/01/1970' : valB);
@@ -85,8 +86,8 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSelectClient }) => {
 
   const SortIndicator = ({ column }: { column: SortKey }) => {
     if (sortConfig.key !== column) return <i className="fa-solid fa-sort ml-1 opacity-20 group-hover:opacity-100 transition-opacity"></i>;
-    return sortConfig.direction === 'asc' 
-      ? <i className="fa-solid fa-sort-up ml-1 text-blue-600"></i> 
+    return sortConfig.direction === 'asc'
+      ? <i className="fa-solid fa-sort-up ml-1 text-blue-600"></i>
       : <i className="fa-solid fa-sort-down ml-1 text-blue-600"></i>;
   };
 
@@ -128,25 +129,22 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSelectClient }) => {
             <div className="flex bg-white border border-slate-200 rounded-lg p-1 shadow-sm">
               <button
                 onClick={() => setStatusFilter('all')}
-                className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${
-                  statusFilter === 'all' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
-                }`}
+                className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${statusFilter === 'all' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
+                  }`}
               >
                 All
               </button>
               <button
                 onClick={() => setStatusFilter('overdue')}
-                className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${
-                  statusFilter === 'overdue' ? 'bg-red-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
-                }`}
+                className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${statusFilter === 'overdue' ? 'bg-red-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
+                  }`}
               >
                 Overdue
               </button>
               <button
                 onClick={() => setStatusFilter('today')}
-                className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${
-                  statusFilter === 'today' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
-                }`}
+                className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${statusFilter === 'today' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
+                  }`}
               >
                 Today
               </button>
@@ -162,7 +160,7 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSelectClient }) => {
             <tr className="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-wider font-bold">
               <th className="px-6 py-4">ID & Client</th>
               <th className="px-6 py-4">CRM / Product</th>
-              <th 
+              <th
                 className="px-6 py-4 cursor-pointer group hover:bg-slate-100 transition-colors"
                 onClick={() => handleSort('lastOrderDate')}
               >
@@ -171,7 +169,7 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSelectClient }) => {
                   <SortIndicator column="lastOrderDate" />
                 </div>
               </th>
-              <th 
+              <th
                 className="px-6 py-4 cursor-pointer group hover:bg-slate-100 transition-colors"
                 onClick={() => handleSort('nextFollowUpDate')}
               >
@@ -184,7 +182,16 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSelectClient }) => {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {sortedAndFilteredClients.length > 0 ? (
+            {loading ? (
+              <tr>
+                <td colSpan={5} className="px-6 py-24 text-center">
+                  <div className="flex flex-col items-center justify-center">
+                    <div className="h-10 w-10 rounded-full border-4 border-slate-200 border-t-indigo-600 animate-spin mb-4"></div>
+                    <p className="text-slate-400 font-bold text-xs tracking-widest uppercase">Loading Clients...</p>
+                  </div>
+                </td>
+              </tr>
+            ) : sortedAndFilteredClients.length > 0 ? (
               sortedAndFilteredClients.map((client) => {
                 const status = getStatusColor(client.nextFollowUpDate);
                 const isTodayStatus = status === 'orange';
@@ -195,17 +202,16 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSelectClient }) => {
                   orange: 'bg-amber-500 text-white border-amber-600 shadow-sm animate-pulse-slow',
                   blue: 'bg-blue-100 text-blue-700 border-blue-200'
                 };
-                
+
                 return (
-                  <tr 
-                    key={client.id} 
-                    className={`transition-all group relative ${
-                      isTodayStatus 
-                        ? 'bg-amber-50/60 border-l-4 border-l-amber-500' 
-                        : isOverdueStatus
+                  <tr
+                    key={client.id}
+                    className={`transition-all group relative ${isTodayStatus
+                      ? 'bg-amber-50/60 border-l-4 border-l-amber-500'
+                      : isOverdueStatus
                         ? 'bg-red-50/30'
                         : 'hover:bg-slate-50'
-                    }`}
+                      }`}
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-start space-x-3">
@@ -237,7 +243,7 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSelectClient }) => {
                         </div>
                         <div className="flex items-center text-[10px] text-slate-500">
                           <i className="fa-solid fa-money-bill-trend-up mr-2 w-3 text-slate-400"></i>
-                          Avg Size: <span className="ml-1 font-bold text-slate-700">₹{client.averageOrderSize || 0}</span>
+                          Avg Size: <span className="ml-1 font-bold text-slate-700">{client.averageOrderSize}</span>
                         </div>
                         <div className="flex items-center text-[10px] text-slate-500">
                           <i className="fa-solid fa-calendar-check mr-2 w-3 text-slate-400"></i>
@@ -262,11 +268,10 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSelectClient }) => {
                     <td className="px-6 py-4 text-right">
                       <button
                         onClick={() => onSelectClient(client)}
-                        className={`p-2 rounded-lg transition-all inline-flex items-center space-x-1 ${
-                          isTodayStatus 
-                            ? 'bg-amber-600 text-white hover:bg-amber-700 shadow-md shadow-amber-600/20' 
-                            : 'text-blue-600 hover:bg-blue-50'
-                        }`}
+                        className={`p-2 rounded-lg transition-all inline-flex items-center space-x-1 ${isTodayStatus
+                          ? 'bg-amber-600 text-white hover:bg-amber-700 shadow-md shadow-amber-600/20'
+                          : 'text-blue-600 hover:bg-blue-50'
+                          }`}
                       >
                         <i className={`fa-solid ${isTodayStatus ? 'fa-phone-flip' : 'fa-pen-to-square'}`}></i>
                         <span className="text-xs font-bold">{isTodayStatus ? 'Call Now' : 'Follow Up'}</span>
@@ -280,8 +285,8 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSelectClient }) => {
                 <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
                   <i className="fa-solid fa-folder-open text-4xl mb-3 opacity-20"></i>
                   <p className="text-sm font-medium">No clients match your current filters.</p>
-                  <button 
-                    onClick={() => {setSearchTerm(''); setStatusFilter('all'); setCrmFilter('all'); setSortConfig({ key: null, direction: 'asc' });}}
+                  <button
+                    onClick={() => { setSearchTerm(''); setStatusFilter('all'); setCrmFilter('all'); setSortConfig({ key: null, direction: 'asc' }); }}
                     className="mt-4 text-blue-600 text-xs font-bold hover:underline"
                   >
                     Clear all filters
@@ -292,7 +297,8 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSelectClient }) => {
           </tbody>
         </table>
       </div>
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         @keyframes pulse-slow {
           0%, 100% { opacity: 1; transform: scale(1); }
           50% { opacity: 0.9; transform: scale(1.01); }
