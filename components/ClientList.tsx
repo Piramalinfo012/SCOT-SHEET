@@ -2,6 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { Client } from '../types';
 import { getStatusColor, isOverdue, parseDateString } from '../utils';
+import { subDays, isSameDay, parse, format } from 'date-fns';
 
 interface ClientListProps {
   clients: Client[];
@@ -17,7 +18,7 @@ interface SortConfig {
 
 const ClientList: React.FC<ClientListProps> = ({ clients, onSelectClient, loading }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'overdue' | 'today'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'overdue' | 'today' | '7days_before' | '10days_before'>('all');
   const [crmFilter, setCrmFilter] = useState<string>('all');
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: null, direction: 'asc' });
 
@@ -52,10 +53,25 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSelectClient, loadin
         id.includes(term);
 
       const status = getStatusColor(client.nextFollowUpDate);
-      const matchesStatus =
-        statusFilter === 'all' ||
-        (statusFilter === 'overdue' && status === 'red') ||
-        (statusFilter === 'today' && status === 'orange');
+
+      let matchesStatus = false;
+      if (statusFilter === 'all') matchesStatus = true;
+      else if (statusFilter === 'overdue') matchesStatus = status === 'red';
+      else if (statusFilter === 'today') matchesStatus = status === 'orange';
+      else if (statusFilter === '7days_before') {
+        if (!client.nextFollowUpDate || client.nextFollowUpDate === 'N/A') matchesStatus = false;
+        else {
+          const d = parse(client.nextFollowUpDate, 'dd/MM/yyyy', new Date());
+          matchesStatus = isSameDay(d, subDays(new Date(), 7));
+        }
+      }
+      else if (statusFilter === '10days_before') {
+        if (!client.nextFollowUpDate || client.nextFollowUpDate === 'N/A') matchesStatus = false;
+        else {
+          const d = parse(client.nextFollowUpDate, 'dd/MM/yyyy', new Date());
+          matchesStatus = isSameDay(d, subDays(new Date(), 10));
+        }
+      }
 
       const matchesCrm =
         crmFilter === 'all' ||
@@ -126,27 +142,41 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSelectClient, loadin
             </div>
 
             {/* Status Tabs */}
-            <div className="flex bg-white border border-slate-200 rounded-lg p-1 shadow-sm">
+            <div className="flex bg-white border border-slate-200 rounded-lg p-1 shadow-sm overflow-x-auto">
               <button
                 onClick={() => setStatusFilter('all')}
-                className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${statusFilter === 'all' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
+                className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all whitespace-nowrap ${statusFilter === 'all' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
                   }`}
               >
                 All
               </button>
               <button
                 onClick={() => setStatusFilter('overdue')}
-                className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${statusFilter === 'overdue' ? 'bg-red-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
+                className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all whitespace-nowrap ${statusFilter === 'overdue' ? 'bg-red-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
                   }`}
               >
                 Overdue
               </button>
               <button
                 onClick={() => setStatusFilter('today')}
-                className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${statusFilter === 'today' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
+                className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all whitespace-nowrap ${statusFilter === 'today' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
                   }`}
               >
                 Today
+              </button>
+              <button
+                onClick={() => setStatusFilter('7days_before')}
+                className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all whitespace-nowrap ${statusFilter === '7days_before' ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
+                  }`}
+              >
+                7 Days Before
+              </button>
+              <button
+                onClick={() => setStatusFilter('10days_before')}
+                className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all whitespace-nowrap ${statusFilter === '10days_before' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
+                  }`}
+              >
+                10 Days Before
               </button>
             </div>
           </div>

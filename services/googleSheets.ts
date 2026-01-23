@@ -18,8 +18,8 @@ export const GoogleSheetsService = {
       const clients: Client[] = [];
       const data = result.data || [];
 
-      // Start from index 2 (data starts at row 3)
-      for (let i = 2; i < data.length; i++) {
+      // Start from index 5 (User specified data starts from row 6)
+      for (let i = 5; i < data.length; i++) {
         const row = data[i];
         if (!row[0]) continue; // Skip empty IDs
 
