@@ -143,7 +143,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ clients, logs }) => {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Party Specific Calendar */}
-                <div className="lg:col-span-2 bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
+                <div className="lg:col-span-2 bg-white p-4 sm:p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
                         <div>
                             <h2 className="text-xl font-black text-slate-800 flex items-center">
@@ -221,7 +221,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ clients, logs }) => {
                 </div>
 
                 {/* Recent Logs List */}
-                <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm h-fit">
+                <div className="bg-white p-4 sm:p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm h-fit">
                     <h2 className="text-xl font-black text-slate-800 mb-6 flex items-center">
                         <i className="fa-solid fa-history mr-3 text-indigo-600"></i>
                         Recent Logs

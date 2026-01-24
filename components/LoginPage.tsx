@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import logo from '../Assets/PPPl Logo copy.png';
 
 const LoginPage: React.FC = () => {
     const [username, setUsername] = useState('');
@@ -29,9 +30,7 @@ const LoginPage: React.FC = () => {
         <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
             <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-md border border-slate-200">
                 <div className="text-center mb-8">
-                    <div className="bg-indigo-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-600/30">
-                        <i className="fa-solid fa-chart-line text-white text-3xl"></i>
-                    </div>
+                    <img src={logo} alt="Logo" className="h-20 w-auto mx-auto mb-4 object-contain" />
                     <h1 className="text-2xl font-black text-slate-800 tracking-tight">SCOT<span className="text-indigo-600"> SHEET</span></h1>
                     <p className="text-slate-500 font-medium text-sm mt-2">Sign in to access your dashboard</p>
                 </div>
