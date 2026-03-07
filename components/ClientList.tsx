@@ -62,7 +62,7 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSelectClient, loadin
         if (!client.nextFollowUpDate || client.nextFollowUpDate === 'N/A') matchesStatus = false;
         else {
           const d = parse(client.nextFollowUpDate, 'dd/MM/yyyy', new Date());
-          matchesStatus = isSameDay(d, addDays(new Date(), 7));
+          matchesStatus = isSameDay(d, addDays(new Date(), 3));
         }
       }
       else if (statusFilter === '10days_before') {
@@ -169,7 +169,7 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSelectClient, loadin
                 className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all whitespace-nowrap ${statusFilter === '7days_before' ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
                   }`}
               >
-                7 Days Before
+                3 Days Before
               </button>
               <button
                 onClick={() => setStatusFilter('10days_before')}
