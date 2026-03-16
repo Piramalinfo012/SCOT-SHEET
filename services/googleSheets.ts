@@ -8,24 +8,24 @@ export const GoogleSheetsService = {
     if (!url) throw new Error("VITE_APPSCRIPT_URL not configured in .env");
 
     try {
-      // Fetch Clients from FMS MST
-      const response = await fetch(`${url}?sheet=FMS MST`);
+      // Fetch Clients from FMS MST    try {
+      const response = await fetch(url);
       if (!response.ok) throw new Error(`Server responded with ${response.status}`);
 
       const result = await response.json();
-      if (!result.success) throw new Error(result.error || "Failed to fetch data");
-
+      
+      // The new Apps Script doGet returns { clients: [...], logs: [...] } directly
+      
       const clients: Client[] = [];
-      const data = result.data || [];
+      const data = result.clients || [];
 
-      // Start from index 5 (User specified data starts from row 6)
-      for (let i = 5; i < data.length; i++) {
-        const row = data[i];
-        if (!row[0]) continue; // Skip empty IDs
+      // Loop through the pre-formatted clients array from Apps Script
+      for (let i = 0; i < data.length; i++) {
+        const clientData = data[i];
 
-        // Filter logic: If user exists and is NOT ADMIN, only show rows where Col B (Index 1) matches their name
+        // Filter logic: If user exists and is NOT ADMIN, only show rows where CRM Name matches their name
         if (user && user.role.toUpperCase() !== 'ADMIN') {
-          const rowName = String(row[1] || "").trim();
+          const rowName = String(clientData.crmName || "").trim();
           const userName = user.name.trim();
           if (rowName.toLowerCase() !== userName.toLowerCase()) {
             continue;
@@ -33,59 +33,53 @@ export const GoogleSheetsService = {
         }
 
         clients.push({
-          id: String(row[0]), // Column A (0)
-          crmName: String(row[1] || ""), // Column B (1)
-          clientName: String(row[2] || ""), // Column C (2)
-          number: String(row[3] || ""), // Column D (3)
-          contactPerson: String(row[4] || ""), // Column E (4)
-          productName: String(row[5] || ""), // Column F (5)
-          averageOrderSize: String(row[6] || ""), // Column G (6)
-          orderFrequency: String(row[7] || ""), // Column H (7) - ORDER FREQUENCY
-          lastOrderDate: formatDate(row[9]), // Column J (9)
-          // Frequency of Calling is not mapped in user request, defaulting to 0
-          frequencyOfCalling: 0,
-          lastCallingDate: formatDate(row[13]), // Column N (13)
-          remark: String(row[18] || ""), // Column S (18)
-          nextFollowUpDate: formatDate(row[20]), // Column U (20)
-          update: "", // Not mapped
-          dateForCalling: "" // Not mapped
+          id: String(clientData.id || ""),
+          rowIndex: clientData.rowIndex,
+          crmName: String(clientData.crmName || ""),
+          clientName: String(clientData.clientName || ""),
+          number: String(clientData.number || ""),
+          contactPerson: String(clientData.contactPerson || ""),
+          productName: String(clientData.productName || ""),
+          averageOrderSize: String(clientData.averageOrderSize || ""),
+          orderFrequency: String(clientData.orderFrequency || ""),
+          lastOrderDate: clientData.lastOrderDate === "N/A" ? "" : clientData.lastOrderDate,
+          lastRateQuoted: String(clientData.lastRateQuoted || ""), // Fetching from the updated API
+          frequencyOfCalling: Number(clientData.frequencyOfCalling) || 0,
+          lastCallingDate: clientData.lastCallingDate === "N/A" ? "" : clientData.lastCallingDate,
+          remark: String(clientData.remark || ""),
+          nextFollowUpDate: clientData.nextFollowUpDate === "N/A" ? "" : clientData.nextFollowUpDate,
+          after1Day: clientData.after1Day === "N/A" ? "" : clientData.after1Day,
+          before3Days: clientData.before3Days === "N/A" ? "" : clientData.before3Days,
+          before10Days: clientData.before10Days === "N/A" ? "" : clientData.before10Days,
+          update: String(clientData.update || ""),
+          dateForCalling: clientData.dateForCalling === "N/A" ? "" : clientData.dateForCalling
         });
       }
 
-      // 2. Fetch Logs from DATA Sheet
-      const logsResponse = await fetch(`${url}?sheet=DATA`);
       const logs: OrderLog[] = [];
-
-      if (logsResponse.ok) {
-        const logsResult = await logsResponse.json();
-        if (logsResult.success && Array.isArray(logsResult.data)) {
-          const logRows = logsResult.data;
-          // Start from index 2 (User specified data starts from row 3)
-          for (let j = 2; j < logRows.length; j++) {
-            const lRow = logRows[j];
-            // Skip empty rows
-            if (!lRow[0]) continue;
-
-            // Filter logs based on User Role
-            if (user && user.role.toUpperCase() !== 'ADMIN') {
-              const logCrmName = String(lRow[2] || "").trim(); // Column C (Index 2)
-              const userName = user.name.trim(); // Master Sheet Name
-              if (logCrmName.toLowerCase() !== userName.toLowerCase()) {
-                continue;
-              }
-            }
-
-            logs.push({
-              timestamp: String(lRow[0] || ""), // Timestamp (Col A)
-              id: String(lRow[1] || ""),
-              crmName: String(lRow[2] || ""),
-              clientName: String(lRow[3] || ""),
-              orderStatus: String(lRow[4] || ""),
-              remark: String(lRow[5] || ""),
-              nextFollowUpDate: formatDate(lRow[7]), // Col H (Index 7)
-            });
+      const logRows = result.logs || [];
+      
+      for (let j = 0; j < logRows.length; j++) {
+        const lRow = logRows[j];
+        
+        // Filter logs based on User Role
+        if (user && user.role.toUpperCase() !== 'ADMIN') {
+          const logCrmName = String(lRow.crmName || "").trim();
+          const userName = user.name.trim();
+          if (logCrmName.toLowerCase() !== userName.toLowerCase()) {
+            continue;
           }
         }
+
+        logs.push({
+          timestamp: String(lRow.timestamp || ""),
+          id: String(lRow.id || ""),
+          crmName: String(lRow.crmName || ""),
+          clientName: String(lRow.clientName || ""),
+          orderStatus: String(lRow.orderStatus || ""),
+          remark: String(lRow.remark || ""),
+          nextFollowUpDate: lRow.nextFollowUpDate === "N/A" ? "" : lRow.nextFollowUpDate,
+        });
       }
 
       return { clients, logs };
@@ -124,9 +118,49 @@ export const GoogleSheetsService = {
         client.orderStatus,         // Index 4: Order Status
         client.remark,              // Index 5: Remark
         "",                         // Index 6: Skipped/Empty
-        formattedNextFollowUp       // Index 7: Next Follow Up Date (MM/dd/yyyy)
+        formattedNextFollowUp,      // Index 7: Next Follow Up Date (MM/dd/yyyy)
+        ""                          // Index 8: Attachment URL (to be filled by Apps Script)
       ];
 
+      const requestBody: any = {
+        action: 'insert',
+        sheetName: 'DATA',
+        rowData: JSON.stringify(rowData)
+      };
+
+      if (client.attachmentBase64) {
+        requestBody.fileData = client.attachmentBase64;
+        requestBody.fileName = client.attachmentName;
+        requestBody.mimeType = client.attachmentMimeType;
+      }
+
+      await fetch(url, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams(requestBody).toString()
+      });
+    } catch (error) {
+      console.error('Error updating Google Sheet:', error);
+      throw error;
+    }
+  },
+
+  async addClient(client: Partial<Client>): Promise<void> {
+    const url = import.meta.env.VITE_APPSCRIPT_URL;
+    if (!url) throw new Error("VITE_APPSCRIPT_URL not configured in .env");
+
+    try {
+      const rowData = [
+        "",                             // Index 0: ID (Empty as requested)
+        client.crmName || "",           // Index 1: CRM NAME
+        client.clientName || "",        // Index 2: CLIENT NAME
+        client.number || "",            // Index 3: NUMBER
+        client.contactPerson || "",     // Index 4: CONTACT PERSON
+        client.productName || "",       // Index 5: PRODUCT NAME
+        client.averageOrderSize || "",  // Index 6: AVERAGE ORDER SIZE
+        client.orderFrequency || ""     // Index 7: ORDER FREQUENCY IN DAYS
+      ];
 
       await fetch(url, {
         method: 'POST',
@@ -134,15 +168,52 @@ export const GoogleSheetsService = {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
           action: 'insert',
-          sheetName: 'DATA',
+          sheetName: 'FMS MST',
           rowData: JSON.stringify(rowData)
         }).toString()
       });
     } catch (error) {
-      console.error('Error updating Google Sheet:', error);
+      console.error('Error adding client to Google Sheet:', error);
       throw error;
     }
   },
+
+  async editClientBasic(client: Client): Promise<void> {
+    const url = import.meta.env.VITE_APPSCRIPT_URL;
+    if (!url) throw new Error("VITE_APPSCRIPT_URL not configured in .env");
+
+    if (!client.rowIndex) throw new Error("Client rowIndex is missing");
+
+    try {
+      // The FMS MST sheet starts with index 0
+      const rowData = [
+        "",                             // Index 0: ID (Empty)
+        client.crmName || "",           // Index 1: CRM NAME
+        client.clientName || "",        // Index 2: CLIENT NAME
+        client.number || "",            // Index 3: NUMBER
+        client.contactPerson || "",     // Index 4: CONTACT PERSON
+        client.productName || "",       // Index 5: PRODUCT NAME
+        client.averageOrderSize || "",  // Index 6: AVERAGE ORDER SIZE
+        client.orderFrequency || ""     // Index 7: ORDER FREQUENCY IN DAYS
+      ];
+
+      await fetch(url, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          action: 'update',
+          sheetName: 'FMS MST',
+          rowIndex: client.rowIndex.toString(),
+          rowData: JSON.stringify(rowData)
+        }).toString()
+      });
+    } catch (error) {
+      console.error('Error editing client in Google Sheet:', error);
+      throw error;
+    }
+  },
+
   async fetchUsers(): Promise<User[]> {
     const url = import.meta.env.VITE_APPSCRIPT_URL;
     if (!url) throw new Error("VITE_APPSCRIPT_URL not configured in .env");
@@ -267,9 +338,89 @@ function doGet(e) {
 function doPost(e) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const dataLogSheet = ss.getSheetByName(DATA_SHEET) || ss.insertSheet(DATA_SHEET);
-    const payload = JSON.parse(e.postData.contents);
+    const FMS_SHEET = "FMS MST";
+    const FMS_SHEET_legacy = "FMS";
+    const fmsSheet = ss.getSheetByName(FMS_SHEET) || ss.getSheetByName(FMS_SHEET_legacy);
     
+    // Parse Payload Options
+    let payload;
+    let action = "";
+    
+    // Check if it's form data or json string
+    if (e.postData.type === "application/x-www-form-urlencoded") {
+      action = e.parameter.action;
+      payload = e.parameter;
+    } else {
+      payload = JSON.parse(e.postData.contents);
+      action = payload.action;
+    }
+
+    if (action === 'insert' && payload.sheetName === 'DATA') {
+      const dataLogSheet = ss.getSheetByName('DATA') || ss.insertSheet('DATA');
+      let rowData = JSON.parse(payload.rowData);
+      
+      // Handle File Upload if present
+      if (payload.fileData && payload.fileName && payload.mimeType) {
+        try {
+          const folderId = '1CPooEJJgbAluj2W6CGhpwEAxC8vhlC1v';
+          const folder = DriveApp.getFolderById(folderId);
+          const blob = Utilities.newBlob(Utilities.base64Decode(payload.fileData), payload.mimeType, payload.fileName);
+          const file = folder.createFile(blob);
+          const fileUrl = file.getUrl();
+          rowData[8] = fileUrl; // Put URL in Column I (Index 8)
+        } catch(uploadErr) {
+          rowData[8] = "Upload Error: " + uploadErr.message;
+        }
+      }
+      
+      dataLogSheet.appendRow(rowData);
+      
+      return ContentService.createTextOutput(JSON.stringify({ status: "success" }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    if (action === 'insert' && payload.sheetName === 'FMS MST') {
+      const rowData = JSON.parse(payload.rowData);
+      let newIdStr = "";
+      
+      if (fmsSheet) {
+          const lr = fmsSheet.getLastRow();
+          let maxId = 0;
+          if (lr > 1) {
+              const ids = fmsSheet.getRange(2, 1, lr - 1, 1).getValues();
+              for (let i = 0; i < ids.length; i++) {
+                  let val = String(ids[i][0]).toUpperCase().trim();
+                  if (val.startsWith("SCT/")) {
+                      let num = parseInt(val.replace("SCT/", ""), 10);
+                      if (!isNaN(num) && num > maxId) {
+                          maxId = num;
+                      }
+                  }
+              }
+          }
+          newIdStr = "SCT/" + (maxId + 1);
+          rowData[0] = newIdStr; 
+          fmsSheet.appendRow(rowData);
+      }
+      
+      return ContentService.createTextOutput(JSON.stringify({ status: "success", id: newIdStr }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === 'update' && payload.sheetName === 'FMS MST' && payload.rowIndex) {
+      const rowIndex = parseInt(payload.rowIndex, 10);
+      const rowData = JSON.parse(payload.rowData);
+      
+      if (fmsSheet && rowIndex > 1) {
+          // Columns 2 to 8 map to Indices 1 to 7 in rowData
+          fmsSheet.getRange(rowIndex, 2, 1, 7).setValues([rowData.slice(1, 8)]);
+      }
+      return ContentService.createTextOutput(JSON.stringify({ status: "success" }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    // Legacy fallback
+    const dataLogSheet = ss.getSheetByName('DATA') || ss.insertSheet('DATA');
     dataLogSheet.appendRow([
       new Date(),                      
       payload.id,                      

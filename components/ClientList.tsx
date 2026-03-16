@@ -7,6 +7,8 @@ import { subDays, addDays, isSameDay, parse, format } from 'date-fns';
 interface ClientListProps {
   clients: Client[];
   onSelectClient: (client: Client) => void;
+  onAddNewClient?: () => void;
+  onEditClient?: (client: Client) => void;
   loading?: boolean;
 }
 
@@ -16,7 +18,7 @@ interface SortConfig {
   direction: 'asc' | 'desc';
 }
 
-const ClientList: React.FC<ClientListProps> = ({ clients, onSelectClient, loading }) => {
+const ClientList: React.FC<ClientListProps> = ({ clients, onSelectClient, onAddNewClient, onEditClient, loading }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'overdue' | 'today' | '7days_before' | '10days_before'>('all');
   const [crmFilter, setCrmFilter] = useState<string>('all');
@@ -59,17 +61,19 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSelectClient, loadin
       else if (statusFilter === 'overdue') matchesStatus = status === 'red';
       else if (statusFilter === 'today') matchesStatus = status === 'orange';
       else if (statusFilter === '7days_before') {
-        if (!client.nextFollowUpDate || client.nextFollowUpDate === 'N/A') matchesStatus = false;
+        const dStr = client.before3Days;
+        if (!dStr || dStr === 'N/A') matchesStatus = false;
         else {
-          const d = parse(client.nextFollowUpDate, 'dd/MM/yyyy', new Date());
-          matchesStatus = isSameDay(d, addDays(new Date(), 3));
+          const d = parse(dStr, 'dd/MM/yyyy', new Date());
+          matchesStatus = isSameDay(d, new Date());
         }
       }
       else if (statusFilter === '10days_before') {
-        if (!client.nextFollowUpDate || client.nextFollowUpDate === 'N/A') matchesStatus = false;
+        const dStr = client.before10Days;
+        if (!dStr || dStr === 'N/A') matchesStatus = false;
         else {
-          const d = parse(client.nextFollowUpDate, 'dd/MM/yyyy', new Date());
-          matchesStatus = isSameDay(d, addDays(new Date(), 10));
+          const d = parse(dStr, 'dd/MM/yyyy', new Date());
+          matchesStatus = isSameDay(d, new Date());
         }
       }
 
@@ -125,6 +129,14 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSelectClient, loadin
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            {onAddNewClient && (
+              <button
+                onClick={onAddNewClient}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold shadow-sm hover:bg-indigo-700 transition flex items-center"
+              >
+                <i className="fa-solid fa-plus mr-2"></i> Add Client
+              </button>
+            )}
             {/* CRM Filter Dropdown */}
             <div className="relative min-w-[180px]">
               <i className="fa-solid fa-user-tie absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
@@ -223,7 +235,13 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSelectClient, loadin
               </tr>
             ) : sortedAndFilteredClients.length > 0 ? (
               sortedAndFilteredClients.map((client) => {
-                const status = getStatusColor(client.nextFollowUpDate);
+                
+                // Determine which date to base the status on depending on the filter
+                let dateToEvaluate = client.nextFollowUpDate;
+                if (statusFilter === '7days_before') dateToEvaluate = client.before3Days || 'N/A';
+                else if (statusFilter === '10days_before') dateToEvaluate = client.before10Days || 'N/A';
+
+                const status = getStatusColor(dateToEvaluate);
                 const isTodayStatus = status === 'orange';
                 const isOverdueStatus = status === 'red';
 
@@ -279,6 +297,12 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSelectClient, loadin
                           <i className="fa-solid fa-calendar-check mr-2 w-3 text-slate-400"></i>
                           Order Freq: <span className="ml-1 text-slate-700">{client.orderFrequency || 'N/A'}</span>
                         </div>
+                        {client.lastRateQuoted && (
+                          <div className="flex items-center text-[10px] text-slate-500">
+                            <i className="fa-solid fa-tag mr-2 w-3 text-slate-400"></i>
+                            Last Rate: <span className="ml-1 font-bold text-emerald-600">{client.lastRateQuoted}</span>
+                          </div>
+                        )}
                         <div className="flex items-center text-[10px] text-slate-500 font-medium border-t border-slate-100 pt-1 mt-0.5">
                           <i className="fa-solid fa-phone-volume mr-2 w-3 text-slate-400"></i>
                           Last Call: <span className="ml-1 text-slate-700">{client.lastCallingDate || 'Never'}</span>
@@ -292,20 +316,41 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSelectClient, loadin
                     <td className="px-6 py-4">
                       <div className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${colorMap[status as keyof typeof colorMap]} ${sortConfig.key === 'nextFollowUpDate' ? 'ring-2 ring-blue-400 ring-offset-1' : ''}`}>
                         <i className={`fa-solid ${status === 'red' ? 'fa-clock' : status === 'orange' ? 'fa-bolt-lightning' : 'fa-calendar'} mr-1.5`}></i>
-                        {isTodayStatus ? 'TODAY' : client.nextFollowUpDate}
+                        {isTodayStatus ? 'TODAY' : dateToEvaluate}
                       </div>
+                      {statusFilter === 'all' && client.before3Days && client.before3Days !== 'N/A' && (
+                        <div className="mt-2 text-[9px] text-slate-400 font-medium">
+                          <span className="text-purple-600 font-bold">3d Before:</span> {client.before3Days}
+                        </div>
+                      )}
+                      {statusFilter === 'all' && client.before10Days && client.before10Days !== 'N/A' && (
+                        <div className="mt-0.5 text-[9px] text-slate-400 font-medium">
+                          <span className="text-indigo-600 font-bold">10d Before:</span> {client.before10Days}
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button
-                        onClick={() => onSelectClient(client)}
-                        className={`p-2 rounded-lg transition-all inline-flex items-center space-x-1 ${isTodayStatus
-                          ? 'bg-amber-600 text-white hover:bg-amber-700 shadow-md shadow-amber-600/20'
-                          : 'text-blue-600 hover:bg-blue-50'
-                          }`}
-                      >
-                        <i className={`fa-solid ${isTodayStatus ? 'fa-phone-flip' : 'fa-pen-to-square'}`}></i>
-                        <span className="text-xs font-bold">{isTodayStatus ? 'Call Now' : 'Follow Up'}</span>
-                      </button>
+                      <div className="flex items-center justify-end space-x-2">
+                        {onEditClient && (
+                          <button
+                            onClick={() => onEditClient(client)}
+                            className="p-2 rounded-lg transition-all inline-flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
+                            title="Edit Client Basic Details"
+                          >
+                            <i className="fa-solid fa-pen"></i>
+                          </button>
+                        )}
+                        <button
+                          onClick={() => onSelectClient(client)}
+                          className={`p-2 rounded-lg transition-all inline-flex items-center space-x-1 ${isTodayStatus
+                            ? 'bg-amber-600 text-white hover:bg-amber-700 shadow-md shadow-amber-600/20'
+                            : 'text-blue-600 hover:bg-blue-50'
+                            }`}
+                        >
+                          <i className={`fa-solid ${isTodayStatus ? 'fa-phone-flip' : 'fa-clipboard-list'}`}></i>
+                          <span className="text-xs font-bold">{isTodayStatus ? 'Call Now' : 'Follow Up'}</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );

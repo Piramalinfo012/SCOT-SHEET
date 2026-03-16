@@ -5,6 +5,9 @@ import { Client, OrderLog } from './types';
 import DashboardView from './components/DashboardView';
 import ClientList from './components/ClientList';
 import FollowUpModal from './components/FollowUpModal';
+import AddClientModal from './components/AddClientModal';
+import EditClientModal from './components/EditClientModal';
+import ReportView from './components/ReportView';
 import LoginPage from './components/LoginPage';
 import Layout from './components/Layout';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -19,6 +22,8 @@ const ProtectedRoutes: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [isAddingClient, setIsAddingClient] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -48,6 +53,26 @@ const ProtectedRoutes: React.FC = () => {
     }
   };
 
+  const handleAddClient = async (newClient: Partial<Client>) => {
+    try {
+      await GoogleSheetsService.addClient(newClient);
+      setTimeout(() => fetchData(), 1000);
+      setIsAddingClient(false);
+    } catch (err: any) {
+      alert("Error adding client: " + err.message);
+    }
+  };
+
+  const handleEditClient = async (updatedClient: Client) => {
+    try {
+      await GoogleSheetsService.editClientBasic(updatedClient);
+      setTimeout(() => fetchData(), 1000);
+      setEditingClient(null);
+    } catch (err: any) {
+      alert("Error editing client: " + err.message);
+    }
+  };
+
   if (authLoading) return <div className="h-screen flex items-center justify-center"><div className="animate-spin h-8 w-8 border-4 border-indigo-600 rounded-full border-t-transparent"></div></div>;
   if (!user) return <Navigate to="/login" replace />;
 
@@ -56,7 +81,27 @@ const ProtectedRoutes: React.FC = () => {
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<DashboardView clients={clients} logs={logs} />} />
-          <Route path="/clients" element={<ClientList clients={clients} onSelectClient={setSelectedClient} loading={loading} />} />
+          <Route 
+            path="/clients" 
+            element={
+              <ClientList 
+                clients={clients} 
+                onSelectClient={setSelectedClient} 
+                onAddNewClient={() => setIsAddingClient(true)} 
+                onEditClient={setEditingClient}
+                loading={loading} 
+              />
+            } 
+          />
+          <Route 
+            path="/report" 
+            element={
+              <ReportView 
+                logs={logs} 
+                uniqueCrms={Array.from(new Set(clients.map(c => c.crmName).filter(Boolean))).sort()} 
+              />
+            } 
+          />
         </Route>
       </Routes>
       {selectedClient && (
@@ -64,6 +109,21 @@ const ProtectedRoutes: React.FC = () => {
           client={selectedClient}
           onClose={() => setSelectedClient(null)}
           onSave={handleUpdateClient}
+        />
+      )}
+      {isAddingClient && (
+        <AddClientModal
+          uniqueCrms={Array.from(new Set(clients.map(c => c.crmName).filter(Boolean))).sort()}
+          onClose={() => setIsAddingClient(false)}
+          onSave={handleAddClient}
+        />
+      )}
+      {editingClient && (
+        <EditClientModal
+          client={editingClient}
+          uniqueCrms={Array.from(new Set(clients.map(c => c.crmName).filter(Boolean))).sort()}
+          onClose={() => setEditingClient(null)}
+          onSave={handleEditClient}
         />
       )}
     </>

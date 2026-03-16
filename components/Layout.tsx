@@ -34,6 +34,13 @@ const Layout: React.FC = () => {
                                     <i className="fa-solid fa-users sm:mr-2 text-lg sm:text-base"></i>
                                     <span className="hidden sm:inline">Clients</span>
                                 </NavLink>
+                                <NavLink
+                                    to="/report"
+                                    className={({ isActive }) => `flex items-center px-3 py-2 rounded-lg text-sm font-bold transition-all ${isActive ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                >
+                                    <i className="fa-solid fa-chart-pie sm:mr-2 text-lg sm:text-base"></i>
+                                    <span className="hidden sm:inline">Report</span>
+                                </NavLink>
                             </div>
 
                             {/* User Profile Info */}

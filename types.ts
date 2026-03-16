@@ -24,15 +24,22 @@ export interface Client {
   productName: string;
   averageOrderSize: string;
   orderFrequency: string;
+  lastRateQuoted?: string;
   lastOrderDate: string;
   dateForCalling: string;
   frequencyOfCalling: number;
   update: string;
   lastCallingDate: string;
   nextFollowUpDate: string;
+  after1Day?: string; // V Column (Index 21)
+  before3Days?: string; // W Column (Index 22)
+  before10Days?: string; // X Column (Index 23)
   remark: string;
   orderStatus?: string;
   emailAddress?: string;
+  attachmentBase64?: string;
+  attachmentName?: string;
+  attachmentMimeType?: string;
 }
 
 export interface DashboardStats {

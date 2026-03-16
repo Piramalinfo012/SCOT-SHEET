@@ -13,7 +13,10 @@ const FollowUpModal: React.FC<FollowUpModalProps> = ({ client, onClose, onSave }
   const [formData, setFormData] = useState({
     orderStatus: 'RECIEVED',
     remark: '',
-    nextFollowUpDate: '' // Default to blank
+    nextFollowUpDate: '', // Default to blank
+    attachmentBase64: '',
+    attachmentName: '',
+    attachmentMimeType: ''
   });
   const [isSaving, setIsSaving] = useState(false);
 
@@ -27,10 +30,43 @@ const FollowUpModal: React.FC<FollowUpModalProps> = ({ client, onClose, onSave }
       ...client,
       orderStatus: formData.orderStatus,
       remark: formData.remark,
-      nextFollowUpDate: formData.nextFollowUpDate // This is the manually entered next follow up
+      nextFollowUpDate: formData.nextFollowUpDate, // This is the manually entered next follow up
+      attachmentBase64: formData.attachmentBase64,
+      attachmentName: formData.attachmentName,
+      attachmentMimeType: formData.attachmentMimeType
     };
 
     onSave(logData);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        alert("File size exceeds 5MB limit.");
+        (e.target as HTMLInputElement).value = '';
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const result = event.target?.result as string;
+        const base64Data = result.split(',')[1];
+        setFormData({
+          ...formData,
+          attachmentBase64: base64Data,
+          attachmentName: file.name,
+          attachmentMimeType: file.type
+        });
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setFormData({
+        ...formData,
+        attachmentBase64: '',
+        attachmentName: '',
+        attachmentMimeType: ''
+      });
+    }
   };
 
   return (
@@ -59,8 +95,8 @@ const FollowUpModal: React.FC<FollowUpModalProps> = ({ client, onClose, onSave }
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-5 overflow-y-auto max-h-[80vh]">
           {/* Client Info Panel */}
-          <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 grid grid-cols-2 gap-y-4 gap-x-6">
-            <div className="col-span-2 flex items-center justify-between border-b border-slate-200 pb-2 mb-1">
+          <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 grid grid-cols-2 md:grid-cols-3 gap-y-4 gap-x-6">
+            <div className="col-span-2 md:col-span-3 flex items-center justify-between border-b border-slate-200 pb-2 mb-1">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Client Business Profile</span>
               <span className="text-[10px] font-bold text-blue-600 px-2 py-0.5 bg-blue-50 rounded-md border border-blue-100">{client.productName}</span>
             </div>
@@ -72,6 +108,12 @@ const FollowUpModal: React.FC<FollowUpModalProps> = ({ client, onClose, onSave }
               <p className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">Order Frequency</p>
               <p className="text-sm font-semibold text-slate-800">{client.orderFrequency || 'N/A'}</p>
             </div>
+            {client.lastRateQuoted && (
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">Last Rate</p>
+                <p className="text-sm font-bold text-emerald-600">{client.lastRateQuoted}</p>
+              </div>
+            )}
           </div>
 
           {/* Input Fields */}
@@ -133,6 +175,20 @@ const FollowUpModal: React.FC<FollowUpModalProps> = ({ client, onClose, onSave }
                 onChange={(e) => setFormData({ ...formData, remark: e.target.value })}
               />
             </div>
+
+            {/* File Upload */}
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 tracking-wider">Attachment (Audio/Image)</label>
+              <div className="relative">
+                <input
+                  type="file"
+                  accept="image/*,audio/*"
+                  onChange={handleFileChange}
+                  className="w-full px-4 py-2.5 bg-white border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:ring-0 outline-none text-sm font-medium transition-all file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                />
+              </div>
+              <p className="text-[10px] text-slate-400 mt-1">Max file size: 5MB.</p>
+            </div>
           </div>
 
           {/* Footer Actions */}
@@ -147,7 +203,7 @@ const FollowUpModal: React.FC<FollowUpModalProps> = ({ client, onClose, onSave }
             <button
               type="submit"
               disabled={isSaving}
-              className={`flex-[2] px-4 py-3 rounded-xl text-white font-bold text-sm flex items-center justify-center space-x-2 transition-all shadow-lg ${isSaving ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/25'
+              className={`flex-2 md:flex-2 px-4 py-3 rounded-xl text-white font-bold text-sm flex items-center justify-center space-x-2 transition-all shadow-lg ${isSaving ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/25'
                 }`}
             >
               {isSaving ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-paper-plane"></i>}
