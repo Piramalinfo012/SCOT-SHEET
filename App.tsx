@@ -45,11 +45,21 @@ const ProtectedRoutes: React.FC = () => {
 
   const handleUpdateClient = async (updatedData: Client) => {
     try {
-      await GoogleSheetsService.updateClient(updatedData);
-      setTimeout(() => fetchData(), 1000);
+      // Optimistically update the UI to prevent user from thinking the save failed and trying again
+      setClients(prev => prev.map(c => c.id === updatedData.id ? { 
+        ...c, 
+        nextFollowUpDate: updatedData.nextFollowUpDate,
+        orderStatus: updatedData.orderStatus,
+        remark: updatedData.remark
+      } : c));
       setSelectedClient(null);
+
+      await GoogleSheetsService.updateClient(updatedData);
+      // Give Google Scripts 3 seconds to fully commit before re-fetching
+      setTimeout(() => fetchData(), 3000);
     } catch (err: any) {
       alert("Error saving log: " + err.message);
+      fetchData(); // Reset on error
     }
   };
 

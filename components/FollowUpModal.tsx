@@ -22,6 +22,7 @@ const FollowUpModal: React.FC<FollowUpModalProps> = ({ client, onClose, onSave }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSaving) return; // Prevent double-click submissions
     setIsSaving(true);
 
     // Prepare data to send to Google Sheets
