@@ -294,8 +294,11 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSelectClient, onAddN
                           Avg Size: <span className="ml-1 font-bold text-slate-700">{client.averageOrderSize}</span>
                         </div>
                         <div className="flex items-center text-[10px] text-slate-500">
-                          <i className="fa-solid fa-calendar-check mr-2 w-3 text-slate-400"></i>
-                          Order Freq: <span className="ml-1 text-slate-700">{client.orderFrequency || 'N/A'}</span>
+                          <i className={`fa-solid fa-calendar-check mr-2 w-3 ${String(client.orderFrequency) === "0" || !client.orderFrequency || client.orderFrequency === "N/A" ? 'text-red-500 animate-pulse' : 'text-slate-400'}`}></i>
+                          Order Freq: 
+                          <span className={`ml-1 font-bold ${String(client.orderFrequency) === "0" || !client.orderFrequency || client.orderFrequency === "N/A" ? 'text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-200 shadow-sm' : 'text-slate-700'}`}>
+                            {client.orderFrequency || 'N/A'}
+                          </span>
                         </div>
                         {client.lastRateQuoted && (
                           <div className="flex items-center text-[10px] text-slate-500">
