@@ -2,6 +2,15 @@ import React, { useState, useMemo, useRef, useEffect } from "react";
 import { DashboardStats, OrderLog, Client } from "../types";
 import DashboardCard from "./DashboardCard";
 import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+} from "recharts";
+import {
   format,
   startOfWeek,
   startOfMonth,
@@ -13,6 +22,7 @@ import {
   isToday,
   isValid,
   parse,
+  subDays,
 } from "date-fns";
 import { formatDateString, isOverdue, isUpcoming } from "../utils";
 
@@ -35,7 +45,10 @@ const DashboardView: React.FC<DashboardViewProps> = ({ clients, logs }) => {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (partyDropdownRef.current && !partyDropdownRef.current.contains(event.target as Node)) {
+      if (
+        partyDropdownRef.current &&
+        !partyDropdownRef.current.contains(event.target as Node)
+      ) {
         setIsPartyDropdownOpen(false);
       }
     };
@@ -43,8 +56,14 @@ const DashboardView: React.FC<DashboardViewProps> = ({ clients, logs }) => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const selectedPartyName = selectedPartyId === "all" ? "-- Select Party --" : clients?.find(c => c.id === selectedPartyId)?.clientName || "-- Select Party --";
-  const filteredParties = (clients || []).filter(c => c.clientName.toLowerCase().includes(partySearchQuery.toLowerCase()));
+  const selectedPartyName =
+    selectedPartyId === "all"
+      ? "-- Select Party --"
+      : clients?.find((c) => c.id === selectedPartyId)?.clientName ||
+        "-- Select Party --";
+  const filteredParties = (clients || []).filter((c) =>
+    c.clientName.toLowerCase().includes(partySearchQuery.toLowerCase()),
+  );
 
   // Derived unique months from data for filter dropdown
   const uniqueMonths = useMemo(() => {
@@ -69,7 +88,10 @@ const DashboardView: React.FC<DashboardViewProps> = ({ clients, logs }) => {
   // Calendar Logic
   const calendarDays = useMemo(() => {
     try {
-      const baseMonthStr = selectedMonth === "all" ? format(new Date(), "MMMM yyyy") : selectedMonth;
+      const baseMonthStr =
+        selectedMonth === "all"
+          ? format(new Date(), "MMMM yyyy")
+          : selectedMonth;
       const monthDate = parse(baseMonthStr, "MMMM yyyy", new Date());
       if (!isValid(monthDate)) return [];
       const start = startOfWeek(startOfMonth(monthDate));
@@ -139,6 +161,58 @@ const DashboardView: React.FC<DashboardViewProps> = ({ clients, logs }) => {
     };
   }, [clients, logs, selectedMonth]);
 
+  // Transform logs for the 7-Day Order Received Chart
+  const last7DaysData = useMemo(() => {
+    const data = [];
+    const today = new Date();
+
+    // Generate the last 7 days array (from oldest to today)
+    for (let i = 6; i >= 0; i--) {
+      const d = subDays(today, i);
+      const dateStr = format(d, "MMM d");
+
+      // Count RECIEVED orders for this exact day
+      let receivedCount = 0;
+      if (Array.isArray(logs)) {
+        logs.forEach((log) => {
+          if (log.timestamp && /rec(ei|ie)ved/i.test(log.orderStatus || "")) {
+            const logDate = new Date(log.timestamp);
+            if (isValid(logDate) && isSameDay(logDate, d)) {
+              receivedCount++;
+            }
+          }
+        });
+      }
+
+      data.push({
+        date: dateStr,
+        orders: receivedCount,
+        isToday: i === 0,
+      });
+    }
+    return data;
+  }, [logs]);
+
+  // Custom Tooltip for the Recharts BarChart
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-slate-900 border-none shadow-xl rounded-xl p-3 flex flex-col items-center">
+          <p className="text-white text-[10px] font-black uppercase tracking-wider mb-1">
+            {label}
+          </p>
+          <p className="text-emerald-400 font-bold text-lg leading-none">
+            {payload[0].value}{" "}
+            <span className="text-[10px] text-slate-400 font-medium">
+              Orders
+            </span>
+          </p>
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       {/* Global Month Filter */}
@@ -163,7 +237,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ clients, logs }) => {
         </div>
         <div className="text-xs font-bold text-slate-400 flex items-center bg-slate-50 px-3 py-1.5 rounded-full">
           <i className="fa-solid fa-calendar-check mr-2 text-indigo-400"></i>
-          Performance Report for {selectedMonth === "all" ? "All Months" : selectedMonth}
+          Performance Report for{" "}
+          {selectedMonth === "all" ? "All Months" : selectedMonth}
         </div>
       </div>
 
@@ -201,7 +276,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ clients, logs }) => {
                 Party Order Calendar
               </h2>
               <p className="text-[11px] font-bold text-slate-400 uppercase mt-1">
-                Order tracking for {selectedMonth === "all" ? "All Months" : selectedMonth}
+                Order tracking for{" "}
+                {selectedMonth === "all" ? "All Months" : selectedMonth}
               </p>
             </div>
             <div className="flex items-center space-x-3">
@@ -214,7 +290,9 @@ const DashboardView: React.FC<DashboardViewProps> = ({ clients, logs }) => {
                   onClick={() => setIsPartyDropdownOpen(!isPartyDropdownOpen)}
                 >
                   <span className="truncate mr-2">{selectedPartyName}</span>
-                  <i className={`fa-solid fa-chevron-down text-[10px] text-slate-400 transition-transform duration-200 ${isPartyDropdownOpen ? "rotate-180" : ""}`}></i>
+                  <i
+                    className={`fa-solid fa-chevron-down text-[10px] text-slate-400 transition-transform duration-200 ${isPartyDropdownOpen ? "rotate-180" : ""}`}
+                  ></i>
                 </div>
                 {isPartyDropdownOpen && (
                   <div className="absolute z-10 top-full mt-1 w-[250px] right-0 sm:right-auto sm:left-auto bg-white border border-slate-200 rounded-xl shadow-lg flex flex-col max-h-[300px]">
@@ -279,10 +357,13 @@ const DashboardView: React.FC<DashboardViewProps> = ({ clients, logs }) => {
               </div>
             ))}
             {calendarDays.map((day, idx) => {
-              const baseMonthStr = selectedMonth === "all" ? format(new Date(), "MMMM yyyy") : selectedMonth;
+              const baseMonthStr =
+                selectedMonth === "all"
+                  ? format(new Date(), "MMMM yyyy")
+                  : selectedMonth;
               const monthDate = parse(baseMonthStr, "MMMM yyyy", new Date());
               const isCurrentMonth = isSameMonth(day, monthDate);
-              
+
               // Find the log for this day to determine status color
               // If "All Months" is selected, match simply on the date number (1-31)
               const logForDay = partyOrders.find((l) => {
@@ -339,7 +420,9 @@ const DashboardView: React.FC<DashboardViewProps> = ({ clients, logs }) => {
                   <span
                     className={`text-xs font-bold mb-1 ${hasOrder ? "text-white" : isDayToday ? "text-indigo-600" : "text-slate-600"}`}
                   >
-                    {selectedMonth === "all" && hasOrder ? format(new Date(logForDay.timestamp), "d MMM") : format(day, "d")}
+                    {selectedMonth === "all" && hasOrder
+                      ? format(new Date(logForDay.timestamp), "d MMM")
+                      : format(day, "d")}
                   </span>
                   {hasOrder && (
                     <div className="flex flex-col items-center justify-center w-full px-0.5">
@@ -368,47 +451,112 @@ const DashboardView: React.FC<DashboardViewProps> = ({ clients, logs }) => {
           )}
         </div>
 
-        {/* Recent Logs List */}
-        <div className="bg-white p-4 sm:p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm h-fit">
-          <h2 className="text-xl font-black text-slate-800 mb-6 flex items-center">
-            <i className="fa-solid fa-history mr-3 text-indigo-600"></i>
-            Recent Logs
-          </h2>
-          <div className="space-y-4 max-h-[460px] overflow-y-auto pr-2 scrollbar-hide">
-            {[...(logs || [])].reverse().map((log, idx) => {
-              const logDate = new Date(log.timestamp);
-              return (
-                <div
-                  key={idx}
-                  className="p-4 bg-slate-50 rounded-2xl border border-slate-100 hover:border-indigo-200 transition-colors"
+        {/* Right Column: Chart + Logs */}
+        <div className="flex flex-col gap-8 h-full">
+          {/* Default Chart for Last 7 Days Orders */}
+          <div className="bg-white p-4 sm:p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col h-[320px]">
+            <h2 className="text-xl font-black text-slate-800 mb-1 flex items-center">
+              <i className="fa-solid fa-chart-column mr-3 text-emerald-500"></i>
+              7-Day Trend
+            </h2>
+            <p className="text-[11px] font-bold text-slate-400 uppercase mb-6">
+              Received Orders Last 7 Days
+            </p>
+            <div className="flex-1 w-full min-h-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={last7DaysData}
+                  margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
                 >
-                  <div className="flex justify-between items-start mb-1">
-                    <span className="text-[10px] font-black text-slate-800 uppercase line-clamp-1 flex-1">
-                      {log.clientName}
-                    </span>
-                    <span
-                      className={`text-[9px] font-black px-2 py-0.5 rounded uppercase ml-2 ${log.orderStatus === "RECIEVED" ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}
-                    >
-                      {log.orderStatus}
-                    </span>
+                  <XAxis
+                    dataKey="date"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: "#94a3b8", fontSize: 10, fontWeight: 700 }}
+                    dy={10}
+                  />
+                  <YAxis
+                    allowDecimals={false}
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: "#cbd5e1", fontSize: 10, fontWeight: 700 }}
+                  />
+                  <Tooltip
+                    content={<CustomTooltip />}
+                    cursor={{ fill: "#f1f5f9", radius: 8 }}
+                  />
+                  <defs>
+                    <linearGradient id="colorOrdersToday" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#10b981" />
+                      <stop offset="100%" stopColor="#047857" />
+                    </linearGradient>
+                    <linearGradient id="colorOrdersPast" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#6366f1" />
+                      <stop offset="100%" stopColor="#4338ca" />
+                    </linearGradient>
+                    <filter id="shadow3d" x="-20%" y="-20%" width="140%" height="140%">
+                      <feDropShadow dx="2" dy="4" stdDeviation="3" floodColor="#0f172a" floodOpacity="0.25" />
+                      <feDropShadow dx="-1" dy="-1" stdDeviation="1" floodColor="#ffffff" floodOpacity="0.6" />
+                    </filter>
+                  </defs>
+                  <Bar dataKey="orders" radius={[6, 6, 6, 6]} maxBarSize={40}>
+                    {last7DaysData.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={entry.isToday ? "url(#colorOrdersToday)" : "url(#colorOrdersPast)"}
+                        opacity={entry.isToday ? 1 : 0.85}
+                        filter="url(#shadow3d)"
+                        className="transition-all hover:opacity-100 hover:brightness-110 cursor-pointer"
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Recent Logs List */}
+          <div className="bg-white p-4 sm:p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col">
+            <h2 className="text-xl font-black text-slate-800 mb-6 flex items-center shrink-0">
+              <i className="fa-solid fa-history mr-3 text-indigo-600"></i>
+              Recent Logs
+            </h2>
+            <div className="space-y-4 overflow-y-auto pr-2 scrollbar-hide max-h-[400px] xl:max-h-[500px]">
+              {[...(logs || [])].reverse().map((log, idx) => {
+                const logDate = new Date(log.timestamp);
+                return (
+                  <div
+                    key={idx}
+                    className="p-4 bg-slate-50 rounded-2xl border border-slate-100 hover:border-indigo-200 transition-colors"
+                  >
+                    <div className="flex justify-between items-start mb-1">
+                      <span className="text-[10px] font-black text-slate-800 uppercase line-clamp-1 flex-1">
+                        {log.clientName}
+                      </span>
+                      <span
+                        className={`text-[9px] font-black px-2 py-0.5 rounded uppercase ml-2 ${log.orderStatus === "RECIEVED" ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}
+                      >
+                        {log.orderStatus}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-500 italic mb-1 line-clamp-2">
+                      "{log.remark || "No remark provided"}"
+                    </p>
+                    <p className="text-[9px] font-bold text-slate-400">
+                      {isValid(logDate)
+                        ? format(logDate, "MMM d, h:mm a")
+                        : "Invalid date"}
+                    </p>
                   </div>
-                  <p className="text-[10px] text-slate-500 italic mb-1 line-clamp-2">
-                    "{log.remark || "No remark provided"}"
-                  </p>
-                  <p className="text-[9px] font-bold text-slate-400">
-                    {isValid(logDate)
-                      ? format(logDate, "MMM d, h:mm a")
-                      : "Invalid date"}
-                  </p>
+                );
+              })}
+              {(!logs || logs.length === 0) && (
+                <div className="text-center py-12 text-slate-400">
+                  <i className="fa-solid fa-ghost text-2xl mb-2 opacity-20"></i>
+                  <p className="text-xs font-bold">No activity recorded yet.</p>
                 </div>
-              );
-            })}
-            {(!logs || logs.length === 0) && (
-              <div className="text-center py-12 text-slate-400">
-                <i className="fa-solid fa-ghost text-2xl mb-2 opacity-20"></i>
-                <p className="text-xs font-bold">No activity recorded yet.</p>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </div>
