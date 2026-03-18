@@ -30,7 +30,13 @@ const ProtectedRoutes: React.FC = () => {
     setError(null);
     try {
       const data = await GoogleSheetsService.fetchClients(user || undefined);
-      setClients(Array.isArray(data?.clients) ? data.clients : []);
+      
+      // Filter out the Google Sheet header row if it gets returned as data
+      const safeClients = Array.isArray(data?.clients) 
+        ? data.clients.filter(c => c.id !== "ID" && c.clientName !== "CLIENT NAME") 
+        : [];
+      
+      setClients(safeClients);
       setLogs(Array.isArray(data?.logs) ? data.logs : []);
     } catch (err: any) {
       setError(err.message || "Failed to fetch data.");
