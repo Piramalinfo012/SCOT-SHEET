@@ -78,7 +78,8 @@ export const GoogleSheetsService = {
           clientName: String(lRow.clientName || ""),
           orderStatus: String(lRow.orderStatus || ""),
           remark: String(lRow.remark || ""),
-          nextFollowUpDate: lRow.nextFollowUpDate === "N/A" ? "" : lRow.nextFollowUpDate,
+          nextFollowUpDate: String(lRow.nextFollowUpDate || ""),
+          attachmentUrl: String(lRow.attachmentUrl || ""),
         });
       }
 

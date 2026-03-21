@@ -12,6 +12,7 @@ export interface OrderLog {
   orderStatus: string;
   remark: string;
   nextFollowUpDate: string;
+  attachmentUrl?: string;
 }
 
 export interface Client {

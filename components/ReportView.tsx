@@ -18,6 +18,7 @@ const ReportView: React.FC<ReportViewProps> = ({ logs, uniqueCrms }) => {
   // Filter state
   const [crmFilter, setCrmFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [partySearch, setPartySearch] = useState<string>('');
 
   // Extract unique statuses
   const uniqueStatuses = useMemo(() => {
@@ -56,9 +57,15 @@ const ReportView: React.FC<ReportViewProps> = ({ logs, uniqueCrms }) => {
       // Status Filter
       const matchesStatus = statusFilter === 'all' || log.orderStatus === statusFilter;
 
-      return matchesDate && matchesCrm && matchesStatus;
+      // Party Search Filter
+      const term = partySearch.toLowerCase();
+      const matchesParty = !term || 
+        log.clientName.toLowerCase().includes(term) || 
+        log.id.toLowerCase().includes(term);
+
+      return matchesDate && matchesCrm && matchesStatus && matchesParty;
     });
-  }, [logs, startDate, endDate, crmFilter, statusFilter, viewMode]);
+  }, [logs, startDate, endDate, crmFilter, statusFilter, partySearch, viewMode]);
 
   // Handle Export to Excel
   const handleExport = () => {
@@ -218,6 +225,21 @@ const ReportView: React.FC<ReportViewProps> = ({ logs, uniqueCrms }) => {
               <i className="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-[10px] pointer-events-none"></i>
             </div>
           </div>
+
+          {/* Party Search */}
+          <div className="lg:col-span-1">
+            <label className="block text-xs font-bold text-slate-700 mb-1">Search Party / ID</label>
+            <div className="relative">
+              <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[10px]"></i>
+              <input 
+                type="text" 
+                placeholder="Name or ID..."
+                value={partySearch}
+                onChange={(e) => setPartySearch(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm transition-all"
+              />
+            </div>
+          </div>
         </div>
         
         {/* Quick clear filters */}
@@ -229,6 +251,7 @@ const ReportView: React.FC<ReportViewProps> = ({ logs, uniqueCrms }) => {
                 setEndDate('');
                 setCrmFilter('all');
                 setStatusFilter('all');
+                setPartySearch('');
               }}
               className="text-xs font-bold text-indigo-600 hover:text-indigo-800 hover:underline"
             >
@@ -253,6 +276,7 @@ const ReportView: React.FC<ReportViewProps> = ({ logs, uniqueCrms }) => {
               <th className="px-6 py-4 border-b border-slate-200 whitespace-nowrap">CRM Name</th>
               <th className="px-6 py-4 border-b border-slate-200 whitespace-nowrap">Order Status</th>
               <th className="px-6 py-4 border-b border-slate-200 whitespace-nowrap">Remark</th>
+              <th className="px-6 py-4 border-b border-slate-200 whitespace-nowrap text-center">Attachment</th>
               <th className="px-6 py-4 border-b border-slate-200 whitespace-nowrap text-right">Follow-Up</th>
             </tr>
           </thead>
@@ -286,6 +310,72 @@ const ReportView: React.FC<ReportViewProps> = ({ logs, uniqueCrms }) => {
                     <p className="text-xs text-slate-600 min-w-[200px] italic">
                       {log.remark ? `"${log.remark}"` : '-'}
                     </p>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex justify-center">
+                      {(() => {
+                        const url = log.attachmentUrl;
+                        if (!url || !url.startsWith('http')) {
+                          return <span className="text-[10px] text-slate-300 italic">None</span>;
+                        }
+
+                        // Drive Direct Download URL conversion
+                        let previewUrl = url;
+                        let fileId = "";
+                        if (url.includes('drive.google.com')) {
+                          const match = url.match(/[?&]id=([^&]+)/) || url.match(/\/d\/([^\/]+)/);
+                          if (match) {
+                            fileId = match[1];
+                            previewUrl = `https://docs.google.com/uc?export=view&id=${fileId}`;
+                          }
+                        }
+
+                        // Determine file type 
+                        const isImage = url.match(/\.(jpeg|jpg|png|gif|webp)$/i) || (url.includes('docs.google.com') && !url.match(/\.(mp3|wav|ogg|m4a)$/i));
+                        const isAudio = url.match(/\.(mp3|wav|ogg|m4a)$/i);
+
+                        // Force download mode for ALL Drive URLs
+                        let finalUrl = url;
+                        if (url.includes('drive.google.com') && fileId) {
+                          finalUrl = `https://docs.google.com/uc?export=download&id=${fileId}`;
+                        }
+
+                        return (
+                          <div className="flex flex-col items-center gap-1 group">
+                            <a 
+                              href={finalUrl} 
+                              target="_blank" 
+                              rel="noopener noreferrer" 
+                              download={`${log.clientName}_attachment`}
+                              className="relative"
+                            >
+                              <div className="w-16 h-12 bg-slate-100 rounded border border-slate-200 overflow-hidden flex items-center justify-center transition-all group-hover:border-indigo-400 group-hover:shadow-md">
+                                {isImage && fileId ? (
+                                  <img 
+                                    src={previewUrl} 
+                                    alt="Preview" 
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      (e.target as any).style.display = 'none';
+                                      (e.target as any).nextSibling.style.display = 'flex';
+                                    }}
+                                  />
+                                ) : null}
+                                <div className={`${isImage && fileId ? 'hidden' : 'flex'} items-center justify-center w-full h-full text-slate-400`}>
+                                  <i className={`fa-solid ${isAudio ? 'fa-music' : 'fa-file-lines'} text-lg`}></i>
+                                </div>
+                              </div>
+                              <div className="absolute inset-0 bg-indigo-600/0 group-hover:bg-indigo-600/10 transition-colors flex items-center justify-center">
+                                <i className="fa-solid fa-download text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"></i>
+                              </div>
+                            </a>
+                            <span className="text-[8px] font-black text-indigo-600 uppercase tracking-tighter">
+                              {isAudio ? 'Audio' : 'Download'}
+                            </span>
+                          </div>
+                        );
+                      })()}
+                    </div>
                   </td>
                   <td className="px-6 py-4 text-right whitespace-nowrap">
                     <span className="text-xs font-medium text-slate-500 flex justify-end items-center">
