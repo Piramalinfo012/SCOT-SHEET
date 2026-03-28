@@ -23,7 +23,13 @@ const FollowUpModal: React.FC<FollowUpModalProps> = ({ client, onClose, onSave }
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (isSaving) return; // Prevent double-click submissions
-    setIsSaving(true);
+
+if (!formData.attachmentBase64) {
+  alert("Please attach an audio or image file before submitting.");
+  return;
+}
+
+setIsSaving(true);
 
     // Prepare data to send to Google Sheets
     // Note: nextFollowUpDate here is what will be written to Column H of DATA sheet
