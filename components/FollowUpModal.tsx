@@ -185,6 +185,7 @@ const FollowUpModal: React.FC<FollowUpModalProps> = ({ client, onClose, onSave }
                   type="file"
                   accept="image/*,audio/*"
                   onChange={handleFileChange}
+                  required
                   className="w-full px-4 py-2.5 bg-white border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:ring-0 outline-none text-sm font-medium transition-all file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                 />
               </div>
