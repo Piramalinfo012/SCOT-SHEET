@@ -141,6 +141,8 @@ setIsSaving(true);
                     <option value="NO REQUIRMENT AS OF NOW">NO REQUIRMENT AS OF NOW</option>
                     <option value="RATE ISSUE">RATE ISSUE</option>
                     <option value="RATE SHARED">RATE SHARED</option>
+                    <option value="CALL NOT RECIEVED">CALL NOT RECIEVED</option>
+                    <option value="CALL DISCONNECT">CALL DISCONNECT</option>
                     <option value="HE WILL ORDER WHEN REQUIRMENT">HE WILL ORDER WHEN REQUIRMENT</option>
                     <option value="PAYMENT PENDING">PAYMENT PENDING</option>
                   </select>
