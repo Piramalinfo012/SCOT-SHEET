@@ -312,47 +312,49 @@ const ReportView: React.FC<ReportViewProps> = ({ logs, uniqueCrms }) => {
                     </p>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="flex justify-center">
+                    <div className="flex flex-wrap justify-center gap-2">
                       {(() => {
-                        const url = log.attachmentUrl;
-                        if (!url || !url.startsWith('http')) {
+                        if (!log.attachmentUrl) {
                           return <span className="text-[10px] text-slate-300 italic">None</span>;
                         }
 
-                        // Drive Direct Download URL conversion
-                        let previewUrl = url;
-                        let fileId = "";
-                        if (url.includes('drive.google.com')) {
-                          const match = url.match(/[?&]id=([^&]+)/) || url.match(/\/d\/([^\/]+)/);
-                          if (match) {
-                            fileId = match[1];
-                            previewUrl = `https://docs.google.com/uc?export=view&id=${fileId}`;
+                        const urls = log.attachmentUrl.split(',').map(u => u.trim()).filter(u => u && u.startsWith('http'));
+                        
+                        if (urls.length === 0) {
+                           return <span className="text-[10px] text-slate-300 italic">None</span>;
+                        }
+
+                        return urls.map((url, urlIndex) => {
+                          let fileId = "";
+                          let viewUrl = url;
+                          let downloadUrl = url;
+                          let thumbnailUrl = url;
+
+                          if (url.includes('drive.google.com')) {
+                            const match = url.match(/[?&]id=([^&]+)/) || url.match(/\/d\/([^\/]+)/);
+                            if (match) {
+                              fileId = match[1];
+                              viewUrl = `https://drive.google.com/file/d/${fileId}/view`;
+                              downloadUrl = `https://docs.google.com/uc?export=download&id=${fileId}`;
+                              thumbnailUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w200-h200`;
+                            }
                           }
-                        }
 
-                        // Determine file type 
-                        const isImage = url.match(/\.(jpeg|jpg|png|gif|webp)$/i) || (url.includes('docs.google.com') && !url.match(/\.(mp3|wav|ogg|m4a)$/i));
-                        const isAudio = url.match(/\.(mp3|wav|ogg|m4a)$/i);
+                          // Since input accept is image/*,audio/*, treat everything non-audio as image
+                          const isAudio = url.match(/\.(mp3|wav|ogg|m4a)$/i);
+                          const isImage = !isAudio;
 
-                        // Force download mode for ALL Drive URLs
-                        let finalUrl = url;
-                        if (url.includes('drive.google.com') && fileId) {
-                          finalUrl = `https://docs.google.com/uc?export=download&id=${fileId}`;
-                        }
-
-                        return (
-                          <div className="flex flex-col items-center gap-1 group">
-                            <a 
-                              href={finalUrl} 
-                              target="_blank" 
-                              rel="noopener noreferrer" 
-                              download={`${log.clientName}_attachment`}
-                              className="relative"
-                            >
-                              <div className="w-16 h-12 bg-slate-100 rounded border border-slate-200 overflow-hidden flex items-center justify-center transition-all group-hover:border-indigo-400 group-hover:shadow-md">
-                                {isImage && fileId ? (
+                          return (
+                            <div key={urlIndex} className="flex flex-col items-center gap-1 group">
+                              {isImage && fileId ? (
+                                <a 
+                                  href={viewUrl} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="relative w-16 h-12 bg-slate-100 rounded border border-slate-200 overflow-hidden flex items-center justify-center transition-all hover:border-indigo-400 hover:shadow-md group"
+                                >
                                   <img 
-                                    src={previewUrl} 
+                                    src={thumbnailUrl} 
                                     alt="Preview" 
                                     className="w-full h-full object-cover"
                                     onError={(e) => {
@@ -360,20 +362,35 @@ const ReportView: React.FC<ReportViewProps> = ({ logs, uniqueCrms }) => {
                                       (e.target as any).nextSibling.style.display = 'flex';
                                     }}
                                   />
-                                ) : null}
-                                <div className={`${isImage && fileId ? 'hidden' : 'flex'} items-center justify-center w-full h-full text-slate-400`}>
-                                  <i className={`fa-solid ${isAudio ? 'fa-music' : 'fa-file-lines'} text-lg`}></i>
-                                </div>
-                              </div>
-                              <div className="absolute inset-0 bg-indigo-600/0 group-hover:bg-indigo-600/10 transition-colors flex items-center justify-center">
-                                <i className="fa-solid fa-download text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"></i>
-                              </div>
-                            </a>
-                            <span className="text-[8px] font-black text-indigo-600 uppercase tracking-tighter">
-                              {isAudio ? 'Audio' : 'Download'}
-                            </span>
-                          </div>
-                        );
+                                  <div className="hidden items-center justify-center w-full h-full text-slate-400">
+                                    <i className="fa-solid fa-image text-lg"></i>
+                                  </div>
+                                  <div className="absolute inset-0 bg-indigo-600/0 group-hover:bg-indigo-600/10 transition-colors flex items-center justify-center">
+                                    <i className="fa-solid fa-eye text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-md bg-white/80 p-1.5 rounded-full text-[10px]"></i>
+                                  </div>
+                                </a>
+                              ) : (
+                                <a 
+                                  href={downloadUrl} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer" 
+                                  download={`${log.clientName}_attachment_${urlIndex + 1}`}
+                                  className="relative w-16 h-12 bg-slate-100 rounded border border-slate-200 overflow-hidden flex items-center justify-center transition-all hover:border-indigo-400 hover:shadow-md group"
+                                >
+                                  <div className="flex items-center justify-center w-full h-full text-slate-400">
+                                    <i className={`fa-solid ${isAudio ? 'fa-music' : 'fa-file-lines'} text-lg`}></i>
+                                  </div>
+                                  <div className="absolute inset-0 bg-indigo-600/0 group-hover:bg-indigo-600/10 transition-colors flex items-center justify-center">
+                                    <i className="fa-solid fa-download text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-md bg-white/80 p-1.5 rounded-full text-[10px]"></i>
+                                  </div>
+                                </a>
+                              )}
+                              <span className="text-[8px] font-black text-indigo-600 uppercase tracking-tighter">
+                                {isAudio ? 'Audio' : isImage ? 'Preview' : 'Download'}
+                              </span>
+                            </div>
+                          );
+                        });
                       })()}
                     </div>
                   </td>

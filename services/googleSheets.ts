@@ -58,6 +58,7 @@ export const GoogleSheetsService = {
 
       const logs: OrderLog[] = [];
       const logRows = result.logs || [];
+      const logMap = new Map<string, OrderLog>();
       
       for (let j = 0; j < logRows.length; j++) {
         const lRow = logRows[j];
@@ -71,16 +72,40 @@ export const GoogleSheetsService = {
           }
         }
 
-        logs.push({
-          timestamp: String(lRow.timestamp || ""),
-          id: String(lRow.id || ""),
-          crmName: String(lRow.crmName || ""),
-          clientName: String(lRow.clientName || ""),
-          orderStatus: String(lRow.orderStatus || ""),
-          remark: String(lRow.remark || ""),
-          nextFollowUpDate: String(lRow.nextFollowUpDate || ""),
-          attachmentUrl: String(lRow.attachmentUrl || ""),
-        });
+        const timestampStr = String(lRow.timestamp || "");
+        const id = String(lRow.id || "");
+        const orderStatus = String(lRow.orderStatus || "");
+        const remark = String(lRow.remark || "");
+        const attachmentUrl = String(lRow.attachmentUrl || "");
+
+        // Create a grouping key based on ID, Status, Remark, and the DATE part of the timestamp (ignoring time)
+        // This groups multiple attachments submitted at once into a single row.
+        const timeKey = timestampStr.split(' ').length > 0 ? timestampStr.substring(0, timestampStr.lastIndexOf(':')) : timestampStr;
+        const key = `${id}_${orderStatus}_${remark}_${timeKey}`;
+
+        if (logMap.has(key)) {
+            const existingLog = logMap.get(key)!;
+            if (attachmentUrl) {
+                if (existingLog.attachmentUrl) {
+                    existingLog.attachmentUrl += `,${attachmentUrl}`;
+                } else {
+                    existingLog.attachmentUrl = attachmentUrl;
+                }
+            }
+        } else {
+            const newLog = {
+              timestamp: timestampStr,
+              id: id,
+              crmName: String(lRow.crmName || ""),
+              clientName: String(lRow.clientName || ""),
+              orderStatus: orderStatus,
+              remark: remark,
+              nextFollowUpDate: String(lRow.nextFollowUpDate || ""),
+              attachmentUrl: attachmentUrl,
+            };
+            logMap.set(key, newLog);
+            logs.push(newLog);
+        }
       }
 
       return { clients, logs };

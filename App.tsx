@@ -25,8 +25,8 @@ const ProtectedRoutes: React.FC = () => {
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [isAddingClient, setIsAddingClient] = useState(false);
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = async (background = false) => {
+    if (!background) setLoading(true);
     setError(null);
     try {
       const data = await GoogleSheetsService.fetchClients(user || undefined);
@@ -41,7 +41,7 @@ const ProtectedRoutes: React.FC = () => {
     } catch (err: any) {
       setError(err.message || "Failed to fetch data.");
     } finally {
-      setLoading(false);
+      if (!background) setLoading(false);
     }
   };
 
@@ -58,11 +58,41 @@ const ProtectedRoutes: React.FC = () => {
         orderStatus: updatedData.orderStatus,
         remark: updatedData.remark
       } : c));
+
+      // Optimistically add the new log so it appears instantly
+      setLogs(prev => [...prev, {
+        timestamp: new Date().toLocaleString(),
+        id: updatedData.id,
+        crmName: updatedData.crmName,
+        clientName: updatedData.clientName,
+        orderStatus: updatedData.orderStatus || '',
+        remark: updatedData.remark || '',
+        nextFollowUpDate: updatedData.nextFollowUpDate || '',
+        attachmentUrl: updatedData.attachments && updatedData.attachments.length > 0 
+          ? updatedData.attachments.map(() => 'Uploading...').join(',') 
+          : ''
+      }]);
+
       setSelectedClient(null);
 
-      await GoogleSheetsService.updateClient(updatedData);
-      // Give Google Scripts 3 seconds to fully commit before re-fetching
-      setTimeout(() => fetchData(), 3000);
+      if (updatedData.attachments && updatedData.attachments.length > 0) {
+        // Send multiple requests concurrently
+        const updatePromises = updatedData.attachments.map(att => {
+          return GoogleSheetsService.updateClient({
+            ...updatedData,
+            attachmentBase64: att.base64,
+            attachmentName: att.name,
+            attachmentMimeType: att.mimeType,
+            attachments: undefined // avoid sending the array down
+          });
+        });
+        await Promise.all(updatePromises);
+      } else {
+        await GoogleSheetsService.updateClient(updatedData);
+      }
+
+      // Give Google Scripts 3 seconds to fully commit before background re-fetching
+      setTimeout(() => fetchData(true), 3000);
     } catch (err: any) {
       alert("Error saving log: " + err.message);
       fetchData(); // Reset on error
@@ -72,7 +102,7 @@ const ProtectedRoutes: React.FC = () => {
   const handleAddClient = async (newClient: Partial<Client>) => {
     try {
       await GoogleSheetsService.addClient(newClient);
-      setTimeout(() => fetchData(), 1000);
+      setTimeout(() => fetchData(true), 1000);
       setIsAddingClient(false);
     } catch (err: any) {
       alert("Error adding client: " + err.message);
@@ -82,7 +112,7 @@ const ProtectedRoutes: React.FC = () => {
   const handleEditClient = async (updatedClient: Client) => {
     try {
       await GoogleSheetsService.editClientBasic(updatedClient);
-      setTimeout(() => fetchData(), 1000);
+      setTimeout(() => fetchData(true), 1000);
       setEditingClient(null);
     } catch (err: any) {
       alert("Error editing client: " + err.message);

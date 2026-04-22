@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Client } from '../types';
 import { formatDateString } from '../utils';
 
@@ -14,39 +14,44 @@ const FollowUpModal: React.FC<FollowUpModalProps> = ({ client, onClose, onSave }
     orderStatus: 'RECIEVED',
     remark: '',
     nextFollowUpDate: '', // Default to blank
-    attachmentBase64: '',
-    attachmentName: '',
-    attachmentMimeType: ''
   });
+  const [attachments, setAttachments] = useState<{ id: number; base64: string; name: string; mimeType: string }[]>([
+    { id: Date.now(), base64: '', name: '', mimeType: '' }
+  ]);
   const [isSaving, setIsSaving] = useState(false);
+
+  const isSavingRef = useRef(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSaving) return; // Prevent double-click submissions
+    if (isSavingRef.current) return; // Guaranteed prevention of double-click race condition
 
-if (!formData.attachmentBase64) {
-  alert("Please attach an audio or image file before submitting.");
-  return;
-}
+    const validAttachments = attachments.filter(att => att.base64);
 
-setIsSaving(true);
+    if (validAttachments.length === 0) {
+      alert("Please attach at least one audio or image file before submitting.");
+      return;
+    }
 
-    // Prepare data to send to Google Sheets
-    // Note: nextFollowUpDate here is what will be written to Column H of DATA sheet
+    isSavingRef.current = true;
+    setIsSaving(true);
+
     const logData = {
       ...client,
       orderStatus: formData.orderStatus,
       remark: formData.remark,
-      nextFollowUpDate: formData.nextFollowUpDate, // This is the manually entered next follow up
-      attachmentBase64: formData.attachmentBase64,
-      attachmentName: formData.attachmentName,
-      attachmentMimeType: formData.attachmentMimeType
+      nextFollowUpDate: formData.nextFollowUpDate,
+      attachments: validAttachments.map(att => ({
+        base64: att.base64,
+        name: att.name,
+        mimeType: att.mimeType
+      }))
     };
 
     onSave(logData);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, id: number) => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) { // 5MB limit
@@ -58,22 +63,24 @@ setIsSaving(true);
       reader.onload = (event) => {
         const result = event.target?.result as string;
         const base64Data = result.split(',')[1];
-        setFormData({
-          ...formData,
-          attachmentBase64: base64Data,
-          attachmentName: file.name,
-          attachmentMimeType: file.type
-        });
+        setAttachments(prev => prev.map(att => 
+          att.id === id ? { ...att, base64: base64Data, name: file.name, mimeType: file.type } : att
+        ));
       };
       reader.readAsDataURL(file);
     } else {
-      setFormData({
-        ...formData,
-        attachmentBase64: '',
-        attachmentName: '',
-        attachmentMimeType: ''
-      });
+      setAttachments(prev => prev.map(att => 
+        att.id === id ? { ...att, base64: '', name: '', mimeType: '' } : att
+      ));
     }
+  };
+
+  const addAttachment = () => {
+    setAttachments(prev => [...prev, { id: Date.now(), base64: '', name: '', mimeType: '' }]);
+  };
+
+  const removeAttachment = (id: number) => {
+    setAttachments(prev => prev.filter(att => att.id !== id));
   };
 
   return (
@@ -188,16 +195,40 @@ setIsSaving(true);
             {/* File Upload */}
             <div>
               <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 tracking-wider">Attachment (Audio/Image)</label>
-              <div className="relative">
-                <input
-                  type="file"
-                  accept="image/*,audio/*"
-                  onChange={handleFileChange}
-                  required
-                  className="w-full px-4 py-2.5 bg-white border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:ring-0 outline-none text-sm font-medium transition-all file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                />
+              <div className="space-y-3">
+                {attachments.map((att, index) => (
+                  <div key={att.id} className="flex items-center gap-2">
+                    <input
+                      type="file"
+                      accept="image/*,audio/*"
+                      onChange={(e) => handleFileChange(e, att.id)}
+                      required={index === 0}
+                      className="w-full px-4 py-2.5 bg-white border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:ring-0 outline-none text-sm font-medium transition-all file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    />
+                    {index === attachments.length - 1 && (
+                      <button
+                        type="button"
+                        onClick={addAttachment}
+                        className="flex-shrink-0 bg-blue-50 text-blue-600 p-2 rounded-xl w-11 h-11 flex items-center justify-center hover:bg-blue-100 transition-colors border border-blue-200"
+                        title="Add another file"
+                      >
+                        <i className="fa-solid fa-plus"></i>
+                      </button>
+                    )}
+                    {attachments.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeAttachment(att.id)}
+                        className="flex-shrink-0 bg-red-50 text-red-600 p-2 rounded-xl w-11 h-11 flex items-center justify-center hover:bg-red-100 transition-colors border border-red-200"
+                        title="Remove file"
+                      >
+                        <i className="fa-solid fa-minus"></i>
+                      </button>
+                    )}
+                  </div>
+                ))}
               </div>
-              <p className="text-[10px] text-slate-400 mt-1">Max file size: 5MB.</p>
+              <p className="text-[10px] text-slate-400 mt-2">Max file size: 5MB per file.</p>
             </div>
           </div>
 

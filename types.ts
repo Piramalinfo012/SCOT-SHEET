@@ -41,6 +41,7 @@ export interface Client {
   attachmentBase64?: string;
   attachmentName?: string;
   attachmentMimeType?: string;
+  attachments?: { base64: string; name: string; mimeType: string }[];
 }
 
 export interface DashboardStats {
