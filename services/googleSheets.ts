@@ -52,7 +52,8 @@ export const GoogleSheetsService = {
           before3Days: clientData.before3Days === "N/A" ? "" : clientData.before3Days,
           before10Days: clientData.before10Days === "N/A" ? "" : clientData.before10Days,
           update: String(clientData.update || ""),
-          dateForCalling: clientData.dateForCalling === "N/A" ? "" : clientData.dateForCalling
+          dateForCalling: clientData.dateForCalling === "N/A" ? "" : clientData.dateForCalling,
+          tradingParty: String(clientData.tradingParty || "No")
         });
       }
 
@@ -240,6 +241,30 @@ export const GoogleSheetsService = {
     }
   },
 
+  async toggleTradingParty(rowIndex: number, value: "Yes" | "No"): Promise<void> {
+    const url = import.meta.env.VITE_APPSCRIPT_URL;
+    if (!url) throw new Error("VITE_APPSCRIPT_URL not configured in .env");
+
+    if (!rowIndex) throw new Error("Client rowIndex is missing");
+
+    try {
+      await fetch(url, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          action: 'updateTradingParty',
+          sheetName: 'FMS MST',
+          rowIndex: rowIndex.toString(),
+          value: value
+        }).toString()
+      });
+    } catch (error) {
+      console.error('Error toggling trading party:', error);
+      throw error;
+    }
+  },
+
   async fetchUsers(): Promise<User[]> {
     const url = import.meta.env.VITE_APPSCRIPT_URL;
     if (!url) throw new Error("VITE_APPSCRIPT_URL not configured in .env");
@@ -334,7 +359,8 @@ function doGet(e) {
       update: row[11] || "",
       lastCallingDate: fmt(row[12]),
       nextFollowUpDate: fmt(row[13]),
-      remark: row[14] || ""
+      remark: row[14] || "",
+      tradingParty: row[41] === "Yes" ? "Yes" : "No"
     });
   }
 
@@ -440,6 +466,18 @@ function doPost(e) {
       if (fmsSheet && rowIndex > 1) {
           // Columns 2 to 8 map to Indices 1 to 7 in rowData
           fmsSheet.getRange(rowIndex, 2, 1, 7).setValues([rowData.slice(1, 8)]);
+      }
+      return ContentService.createTextOutput(JSON.stringify({ status: "success" }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    if (action === 'updateTradingParty' && payload.sheetName === 'FMS MST' && payload.rowIndex) {
+      const rowIndex = parseInt(payload.rowIndex, 10);
+      const value = payload.value;
+      
+      if (fmsSheet && rowIndex > 1) {
+          // Column AP is the 42nd column
+          fmsSheet.getRange(rowIndex, 42).setValue(value);
       }
       return ContentService.createTextOutput(JSON.stringify({ status: "success" }))
         .setMimeType(ContentService.MimeType.JSON);

@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { Client } from '../types';
 import { getStatusColor, isOverdue, parseDateString } from '../utils';
 import { subDays, addDays, isSameDay, parse, format } from 'date-fns';
+import { GoogleSheetsService } from '../services/googleSheets';
 
 interface ClientListProps {
   clients: Client[];
@@ -20,9 +21,28 @@ interface SortConfig {
 
 const ClientList: React.FC<ClientListProps> = ({ clients, onSelectClient, onAddNewClient, onEditClient, loading }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'overdue' | 'today' | '7days_before' | '10days_before'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'overdue' | 'today' | '7days_before' | '10days_before' | 'trading_party'>('all');
   const [crmFilter, setCrmFilter] = useState<string>('all');
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: null, direction: 'asc' });
+  const [localTradingParties, setLocalTradingParties] = useState<Record<string, 'Yes' | 'No'>>({});
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+
+  const handleToggleTradingParty = async (client: Client) => {
+    if (!client.rowIndex) return;
+    const currentValue = localTradingParties[client.id] || client.tradingParty || "No";
+    const newValue = currentValue === "Yes" ? "No" : "Yes";
+    
+    setTogglingId(client.id);
+    try {
+      await GoogleSheetsService.toggleTradingParty(client.rowIndex, newValue);
+      setLocalTradingParties(prev => ({ ...prev, [client.id]: newValue }));
+    } catch (error) {
+      console.error("Failed to toggle trading party", error);
+      alert("Failed to update Trading Party status.");
+    } finally {
+      setTogglingId(null);
+    }
+  };
 
   // Extract unique CRM Names for the filter dropdown
   const uniqueCrms = useMemo(() => {
@@ -75,6 +95,10 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSelectClient, onAddN
           const d = parse(dStr, 'dd/MM/yyyy', new Date());
           matchesStatus = isSameDay(d, new Date());
         }
+      }
+      else if (statusFilter === 'trading_party') {
+        const isTrading = localTradingParties[client.id] !== undefined ? localTradingParties[client.id] : client.tradingParty;
+        matchesStatus = isTrading === 'Yes';
       }
 
       const matchesCrm =
@@ -189,6 +213,13 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSelectClient, onAddN
                   }`}
               >
                 10 Days Before
+              </button>
+              <button
+                onClick={() => setStatusFilter('trading_party')}
+                className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all whitespace-nowrap ${statusFilter === 'trading_party' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
+                  }`}
+              >
+                Trading Party
               </button>
             </div>
           </div>
@@ -334,6 +365,20 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSelectClient, onAddN
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end space-x-2">
+                        {/* Trading Party Toggle */}
+                        <div className="flex flex-col items-center mr-2">
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input 
+                              type="checkbox" 
+                              className="sr-only peer"
+                              checked={(localTradingParties[client.id] || client.tradingParty || 'No') === 'Yes'}
+                              onChange={() => handleToggleTradingParty(client)}
+                              disabled={togglingId === client.id || !client.rowIndex}
+                            />
+                            <div className="w-8 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-emerald-500 opacity-90 hover:opacity-100"></div>
+                          </label>
+                          <span className="text-[8px] font-bold text-slate-500 mt-1 uppercase">Trading</span>
+                        </div>
                         {onEditClient && (
                           <button
                             onClick={() => onEditClient(client)}
