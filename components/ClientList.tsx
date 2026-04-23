@@ -150,6 +150,13 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSelectClient, onAddN
       : <i className="fa-solid fa-sort-down ml-1 text-blue-600"></i>;
   };
 
+  const dncCount = useMemo(() => {
+    return clients.filter(c => {
+      const isTrading = localTradingParties[c.id] !== undefined ? localTradingParties[c.id] : c.tradingParty;
+      return isTrading === 'Yes';
+    }).length;
+  }, [clients, localTradingParties]);
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
       {/* Filters Header */}
@@ -234,7 +241,7 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSelectClient, onAddN
                 className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all whitespace-nowrap ${statusFilter === 'trading_party' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'
                   }`}
               >
-                Trading Party
+                DNC ({dncCount})
               </button>
             </div>
           </div>
@@ -392,7 +399,7 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSelectClient, onAddN
                             />
                             <div className="w-8 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-emerald-500 opacity-90 hover:opacity-100"></div>
                           </label>
-                          <span className="text-[8px] font-bold text-slate-500 mt-1 uppercase">Trading</span>
+                          <span className="text-[8px] font-bold text-slate-500 mt-1 uppercase">DNC</span>
                         </div>
                         {onEditClient && (
                           <button
