@@ -324,13 +324,27 @@ const formatDate = (val: any): string => {
  * GOOGLE APPS SCRIPT CODE (PASTE IN EXTENSIONS > APPS SCRIPT)
  * -----------------------------------------------------------
  * 
-const FMS_SHEET = "FMS";
+const FMS_SHEET = "FMS MST";
+const FMS_SHEET_legacy = "FMS";
 const DATA_SHEET = "DATA";
 
 function doGet(e) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const fmsSheet = ss.getSheetByName(FMS_SHEET);
+  
+  if (e && e.parameter && e.parameter.sheet === 'Master') {
+    const masterSheet = ss.getSheetByName('Master');
+    if (!masterSheet) return ContentService.createTextOutput(JSON.stringify({ success: false, error: 'Master sheet not found' })).setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({ success: true, data: masterSheet.getDataRange().getValues() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  const fmsSheet = ss.getSheetByName(FMS_SHEET) || ss.getSheetByName(FMS_SHEET_legacy);
   const dataSheet = ss.getSheetByName(DATA_SHEET);
+  
+  if (!fmsSheet) {
+    return ContentService.createTextOutput(JSON.stringify({ clients: [], logs: [], error: "FMS Sheet not found" }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
   
   const fmsData = fmsSheet.getDataRange().getValues();
   const clients = [];
@@ -353,14 +367,18 @@ function doGet(e) {
       productName: row[5] || "",
       averageOrderSize: row[6] || 0,
       orderFrequency: row[7] || "",
-      lastOrderDate: fmt(row[9]), 
       dateForCalling: fmt(row[8]), 
+      lastOrderDate: fmt(row[9]), 
       frequencyOfCalling: row[10] || 0,
-      update: row[11] || "",
-      lastCallingDate: fmt(row[12]),
-      nextFollowUpDate: fmt(row[13]),
-      remark: row[14] || "",
-      tradingParty: row[41] === "Yes" ? "Yes" : "No"
+      lastCallingDate: fmt(row[13]),      // Col N
+      nextFollowUpDate: fmt(row[20]),     // Col U
+      remark: row[18] || "",              // Col S
+      update: row[19] || "",              // Col T
+      after1Day: fmt(row[21]),            // Col V
+      before3Days: fmt(row[22]),          // Col W
+      before10Days: fmt(row[23]),         // Col X
+      lastRateQuoted: row[39] || "",      // Col AN
+      tradingParty: row[41] === "Yes" ? "Yes" : "No" // Col AP
     });
   }
 

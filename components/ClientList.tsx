@@ -32,12 +32,17 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSelectClient, onAddN
     const currentValue = localTradingParties[client.id] || client.tradingParty || "No";
     const newValue = currentValue === "Yes" ? "No" : "Yes";
     
+    // Optimistic UI Update - instantly refresh the switch
+    setLocalTradingParties(prev => ({ ...prev, [client.id]: newValue }));
     setTogglingId(client.id);
+    
     try {
+      // Background request
       await GoogleSheetsService.toggleTradingParty(client.rowIndex, newValue);
-      setLocalTradingParties(prev => ({ ...prev, [client.id]: newValue }));
     } catch (error) {
       console.error("Failed to toggle trading party", error);
+      // Revert if failed
+      setLocalTradingParties(prev => ({ ...prev, [client.id]: currentValue }));
       alert("Failed to update Trading Party status.");
     } finally {
       setTogglingId(null);
@@ -76,29 +81,39 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSelectClient, onAddN
 
       const status = getStatusColor(client.nextFollowUpDate);
 
+      const isTrading = localTradingParties[client.id] !== undefined ? localTradingParties[client.id] : client.tradingParty;
+
       let matchesStatus = false;
-      if (statusFilter === 'all') matchesStatus = true;
-      else if (statusFilter === 'overdue') matchesStatus = status === 'red';
-      else if (statusFilter === 'today') matchesStatus = status === 'orange';
-      else if (statusFilter === '7days_before') {
-        const dStr = client.before3Days;
-        if (!dStr || dStr === 'N/A') matchesStatus = false;
-        else {
-          const d = parse(dStr, 'dd/MM/yyyy', new Date());
-          matchesStatus = isSameDay(d, new Date());
-        }
-      }
-      else if (statusFilter === '10days_before') {
-        const dStr = client.before10Days;
-        if (!dStr || dStr === 'N/A') matchesStatus = false;
-        else {
-          const d = parse(dStr, 'dd/MM/yyyy', new Date());
-          matchesStatus = isSameDay(d, new Date());
-        }
-      }
-      else if (statusFilter === 'trading_party') {
-        const isTrading = localTradingParties[client.id] !== undefined ? localTradingParties[client.id] : client.tradingParty;
+      
+      if (statusFilter === 'all') {
+        matchesStatus = true;
+      } else if (statusFilter === 'trading_party') {
         matchesStatus = isTrading === 'Yes';
+      } else {
+        // For all other filters (overdue, today, 3 days, 10 days)
+        // If it's a trading party, hide it from these filters
+        if (isTrading === 'Yes') {
+          matchesStatus = false;
+        } else {
+          if (statusFilter === 'overdue') matchesStatus = status === 'red';
+          else if (statusFilter === 'today') matchesStatus = status === 'orange';
+          else if (statusFilter === '7days_before') {
+            const dStr = client.before3Days;
+            if (!dStr || dStr === 'N/A') matchesStatus = false;
+            else {
+              const d = parse(dStr, 'dd/MM/yyyy', new Date());
+              matchesStatus = isSameDay(d, new Date());
+            }
+          }
+          else if (statusFilter === '10days_before') {
+            const dStr = client.before10Days;
+            if (!dStr || dStr === 'N/A') matchesStatus = false;
+            else {
+              const d = parse(dStr, 'dd/MM/yyyy', new Date());
+              matchesStatus = isSameDay(d, new Date());
+            }
+          }
+        }
       }
 
       const matchesCrm =
