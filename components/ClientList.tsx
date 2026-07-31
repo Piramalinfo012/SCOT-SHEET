@@ -338,14 +338,32 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSelectClient, onAddN
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-col gap-1.5">
+                        <div className="flex items-center text-[10px] text-slate-500 font-medium">
+                          <i className="fa-solid fa-phone-volume mr-2 w-3 text-slate-400"></i>
+                          Last Call: <span className="ml-1 text-slate-700">{client.lastCallingDate || 'Never'}</span>
+                        </div>
                         <div className="flex items-center text-[10px] text-slate-600 font-semibold">
                           <i className="fa-solid fa-cart-shopping mr-2 w-3 text-slate-400"></i>
                           Last Order: <span className={`ml-1 ${sortConfig.key === 'lastOrderDate' ? 'text-blue-600 font-black' : 'text-slate-900'}`}>{client.lastOrderDate || 'N/A'}</span>
                         </div>
-                        <div className="flex items-center text-[10px] text-slate-500">
-                          <i className="fa-solid fa-money-bill-trend-up mr-2 w-3 text-slate-400"></i>
-                          Avg Size: <span className="ml-1 font-bold text-slate-700">{client.averageOrderSize}</span>
-                        </div>
+                        {client.lastOrderRate && (
+                          <div className="flex items-center text-[10px] text-slate-500">
+                            <i className="fa-solid fa-receipt mr-2 w-3 text-slate-400"></i>
+                            Order Rate: <span className="ml-1 font-bold text-rose-600">{client.lastOrderRate}</span>
+                          </div>
+                        )}
+                        {client.lastRateQuoted && (
+                          <div className="flex items-center text-[10px] text-slate-500">
+                            <i className="fa-solid fa-tag mr-2 w-3 text-slate-400"></i>
+                            Last Rate Quoted: <span className="ml-1 font-bold text-emerald-600">{client.lastRateQuoted}</span>
+                          </div>
+                        )}
+                        {client.lastOrderRateQuotedDate && client.lastOrderRateQuotedDate !== 'N/A' && (
+                          <div className="flex items-center text-[10px] text-slate-500">
+                            <i className="fa-solid fa-calendar-day mr-2 w-3 text-slate-400"></i>
+                            Quoted Date: <span className="ml-1 font-bold text-indigo-600">{client.lastOrderRateQuotedDate}</span>
+                          </div>
+                        )}
                         <div className="flex items-center text-[10px] text-slate-500">
                           <i className={`fa-solid fa-calendar-check mr-2 w-3 ${String(client.orderFrequency) === "0" || !client.orderFrequency || client.orderFrequency === "N/A" ? 'text-red-500 animate-pulse' : 'text-slate-400'}`}></i>
                           Order Freq: 
@@ -353,17 +371,11 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSelectClient, onAddN
                             {client.orderFrequency || 'N/A'}
                           </span>
                         </div>
-                        {client.lastRateQuoted && (
-                          <div className="flex items-center text-[10px] text-slate-500">
-                            <i className="fa-solid fa-tag mr-2 w-3 text-slate-400"></i>
-                            Last Rate: <span className="ml-1 font-bold text-emerald-600">{client.lastRateQuoted}</span>
-                          </div>
-                        )}
-                        <div className="flex items-center text-[10px] text-slate-500 font-medium border-t border-slate-100 pt-1 mt-0.5">
-                          <i className="fa-solid fa-phone-volume mr-2 w-3 text-slate-400"></i>
-                          Last Call: <span className="ml-1 text-slate-700">{client.lastCallingDate || 'Never'}</span>
+                        <div className="flex items-center text-[10px] text-slate-500">
+                          <i className="fa-solid fa-money-bill-trend-up mr-2 w-3 text-slate-400"></i>
+                          Avg Size: <span className="ml-1 font-bold text-slate-700">{client.averageOrderSize}</span>
                         </div>
-                        <div className="flex items-center text-[10px] text-slate-400">
+                        <div className="flex items-center text-[10px] text-slate-400 border-t border-slate-100 pt-1 mt-0.5">
                           <i className="fa-solid fa-rotate mr-2 w-3 text-slate-300"></i>
                           Call Freq: <span className="ml-1 text-slate-500">{client.frequencyOfCalling} Days</span>
                         </div>

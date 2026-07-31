@@ -26,6 +26,8 @@ export interface Client {
   averageOrderSize: string;
   orderFrequency: string;
   lastRateQuoted?: string;
+  lastOrderRate?: string;
+  lastOrderRateQuotedDate?: string;
   lastOrderDate: string;
   dateForCalling: string;
   frequencyOfCalling: number;

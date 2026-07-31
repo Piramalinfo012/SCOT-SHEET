@@ -44,6 +44,8 @@ export const GoogleSheetsService = {
           orderFrequency: String(clientData.orderFrequency || ""),
           lastOrderDate: clientData.lastOrderDate === "N/A" ? "" : clientData.lastOrderDate,
           lastRateQuoted: String(clientData.lastRateQuoted || ""), // Fetching from the updated API
+          lastOrderRate: String(clientData.lastOrderRate || ""),
+          lastOrderRateQuotedDate: clientData.lastOrderRateQuotedDate === "N/A" ? "" : clientData.lastOrderRateQuotedDate,
           frequencyOfCalling: Number(clientData.frequencyOfCalling) || 0,
           lastCallingDate: clientData.lastCallingDate === "N/A" ? "" : clientData.lastCallingDate,
           remark: String(clientData.remark || ""),
@@ -378,6 +380,8 @@ function doGet(e) {
       before3Days: fmt(row[22]),          // Col W
       before10Days: fmt(row[23]),         // Col X
       lastRateQuoted: row[39] || "",      // Col AN
+      lastOrderRate: row[42] || "",       // Col AQ
+      lastOrderRateQuotedDate: fmt(row[43]), // Col AR
       tradingParty: row[41] === "Yes" ? "Yes" : "No" // Col AP
     });
   }
