@@ -7,7 +7,7 @@ const Layout: React.FC = () => {
     const { user, logout } = useAuth();
 
     return (
-        <div className="min-h-screen bg-slate-50 text-slate-900 font-sans overflow-x-hidden">
+        <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans overflow-x-hidden">
             <nav className="bg-white border-b border-slate-200 sticky top-0 z-40">
                 <div className="w-full px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between h-16">
@@ -61,9 +61,44 @@ const Layout: React.FC = () => {
                 </div>
             </nav>
 
-            <main className="w-full px-2 sm:px-4 lg:px-6 py-4 sm:py-8">
+            <main className="w-full px-2 sm:px-4 lg:px-6 pt-4 pb-12 sm:pt-8 sm:pb-16 flex-grow">
                 <Outlet />
             </main>
+
+            <footer className="fixed bottom-0 left-0 w-full py-1.5 bg-slate-50/90 backdrop-blur-sm border-t border-slate-200/50 flex justify-center items-center z-50">
+                <style dangerouslySetInnerHTML={{__html: `
+                    .typing-container {
+                        display: inline-flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 11px;
+                        font-weight: 900;
+                        letter-spacing: 0.15em;
+                        color: #7c3aed;
+                    }
+                    .typing-text {
+                        overflow: hidden;
+                        white-space: nowrap;
+                        border-right: 2px solid #7c3aed;
+                        animation: typing 5s steps(32, end) infinite, blink-caret .75s step-end infinite;
+                    }
+                    @keyframes typing {
+                        0%, 10% { width: 0; }
+                        40%, 80% { width: 32ch; }
+                        90%, 100% { width: 0; }
+                    }
+                    @keyframes blink-caret {
+                        from, to { border-color: transparent }
+                        50% { border-color: #7c3aed; }
+                    }
+                `}} />
+                <div className="typing-container">
+                    <span className="mr-2 text-[8px]">●</span>
+                    <div className="typing-text uppercase">
+                        DEVELOPED BY DEEPAK SAHU
+                    </div>
+                </div>
+            </footer>
         </div>
     );
 };
