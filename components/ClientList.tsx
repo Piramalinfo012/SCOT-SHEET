@@ -352,16 +352,16 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSelectClient, onAddN
                             Order Rate: <span className="ml-1 font-bold text-rose-600">{client.lastOrderRate}</span>
                           </div>
                         )}
-                        {client.lastRateQuoted && (
-                          <div className="flex items-center text-[10px] text-slate-500">
-                            <i className="fa-solid fa-tag mr-2 w-3 text-slate-400"></i>
-                            Last Rate Quoted: <span className="ml-1 font-bold text-emerald-600">{client.lastRateQuoted}</span>
-                          </div>
-                        )}
                         {client.lastOrderRateQuotedDate && client.lastOrderRateQuotedDate !== 'N/A' && (
                           <div className="flex items-center text-[10px] text-slate-500">
                             <i className="fa-solid fa-calendar-day mr-2 w-3 text-slate-400"></i>
-                            Quoted Date: <span className="ml-1 font-bold text-indigo-600">{client.lastOrderRateQuotedDate}</span>
+                            Enquiry date: <span className="ml-1 font-bold text-indigo-600">{client.lastOrderRateQuotedDate}</span>
+                          </div>
+                        )}
+                        {client.lastRateQuoted && (
+                          <div className="flex items-center text-[10px] text-slate-500">
+                            <i className="fa-solid fa-tag mr-2 w-3 text-slate-400"></i>
+                            Enquiry Rate: <span className="ml-1 font-bold text-emerald-600">{client.lastRateQuoted}</span>
                           </div>
                         )}
                         <div className="flex items-center text-[10px] text-slate-500">
