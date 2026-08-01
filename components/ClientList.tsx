@@ -19,6 +19,25 @@ interface SortConfig {
   direction: 'asc' | 'desc';
 }
 
+const formatLastOrderDate = (dateString: string) => {
+  if (!dateString || dateString === 'N/A') return 'N/A';
+  const [datePart] = dateString.split(' ');
+  const parts = datePart.split(/[-/]/);
+  if (parts.length === 3) {
+    const p1 = parts[0].padStart(2, '0');
+    const p2 = parts[1].padStart(2, '0');
+    const yyyy = parts[2].substring(0, 4);
+    let mm = p1;
+    let dd = p2;
+    if (parseInt(p1) > 12) {
+      dd = p1;
+      mm = p2;
+    }
+    return `${dd}/${mm}/${yyyy}`;
+  }
+  return dateString;
+};
+
 const ClientList: React.FC<ClientListProps> = ({ clients, onSelectClient, onAddNewClient, onEditClient, loading }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'overdue' | 'today' | '7days_before' | '10days_before' | 'trading_party'>('all');
@@ -344,7 +363,7 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSelectClient, onAddN
                         </div>
                         <div className="flex items-center text-[10px] text-slate-600 font-semibold">
                           <i className="fa-solid fa-cart-shopping mr-2 w-3 text-slate-400"></i>
-                          Last Order: <span className={`ml-1 ${sortConfig.key === 'lastOrderDate' ? 'text-blue-600 font-black' : 'text-slate-900'}`}>{client.lastOrderDate || 'N/A'}</span>
+                          Last Order: <span className={`ml-1 ${sortConfig.key === 'lastOrderDate' ? 'text-blue-600 font-black' : 'text-slate-900'}`}>{formatLastOrderDate(client.lastOrderDate || 'N/A')}</span>
                         </div>
                         {client.lastOrderRate && (
                           <div className="flex items-center text-[10px] text-slate-500">
