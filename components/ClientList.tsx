@@ -24,14 +24,19 @@ const formatLastOrderDate = (dateString: string) => {
   const [datePart] = dateString.split(' ');
   const parts = datePart.split(/[-/]/);
   if (parts.length === 3) {
-    const p1 = parts[0].padStart(2, '0');
-    const p2 = parts[1].padStart(2, '0');
-    const yyyy = parts[2].substring(0, 4);
-    let mm = p1;
-    let dd = p2;
-    if (parseInt(p1) > 12) {
-      dd = p1;
-      mm = p2;
+    let dd = parts[0].padStart(2, '0');
+    let mm = parts[1].padStart(2, '0');
+    let rawYear = parts[2];
+    let yyyy = rawYear.length === 2 ? `20${rawYear}` : rawYear.substring(0, 4);
+
+    if (parts[0].length === 4) {
+      yyyy = parts[0];
+      mm = parts[1].padStart(2, '0');
+      dd = parts[2].padStart(2, '0');
+    } else if (parseInt(mm) > 12 && parseInt(dd) <= 12) {
+      const temp = dd;
+      dd = mm;
+      mm = temp;
     }
     return `${dd}/${mm}/${yyyy}`;
   }
