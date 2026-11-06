@@ -4,6 +4,7 @@ import { Client } from '../types';
 import { getStatusColor, isOverdue, parseDateString } from '../utils';
 import { subDays, addDays, isSameDay, parse, format } from 'date-fns';
 import { GoogleSheetsService } from '../services/googleSheets';
+import * as XLSX from 'xlsx';
 
 interface ClientListProps {
   clients: Client[];
@@ -181,6 +182,38 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSelectClient, onAddN
     }).length;
   }, [clients, localTradingParties]);
 
+  const handleExportExcel = () => {
+    const rows = sortedAndFilteredClients.map((client: Client) => {
+      const isTrading = localTradingParties[client.id] !== undefined ? localTradingParties[client.id] : client.tradingParty;
+      return {
+        'ID': client.id,
+        'Client Name': client.clientName,
+        'Contact Person': client.contactPerson,
+        'Number': client.number,
+        'CRM Name': client.crmName,
+        'Product': client.productName,
+        'Last Call': client.lastCallingDate || 'Never',
+        'Last Order Date': formatLastOrderDate(client.lastOrderDate || 'N/A'),
+        'Order Rate': client.lastOrderRate || '',
+        'Enquiry Date': client.lastOrderRateQuotedDate || '',
+        'Enquiry Rate': client.lastRateQuoted || '',
+        'Order Frequency': client.orderFrequency || 'N/A',
+        'Avg Order Size': client.averageOrderSize,
+        'Call Freq (Days)': client.frequencyOfCalling,
+        'Next Follow-Up': client.nextFollowUpDate,
+        '3 Days Before': client.before3Days || '',
+        '10 Days Before': client.before10Days || '',
+        'DNC': isTrading === 'Yes' ? 'Yes' : 'No',
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Clients');
+    const fileName = `Clients_${format(new Date(), 'dd-MM-yyyy')}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
       {/* Filters Header */}
@@ -207,6 +240,14 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSelectClient, onAddN
                 <i className="fa-solid fa-plus mr-2"></i> Add Client
               </button>
             )}
+            <button
+              onClick={handleExportExcel}
+              disabled={sortedAndFilteredClients.length === 0}
+              className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold shadow-sm hover:bg-emerald-700 transition flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Download current list as Excel"
+            >
+              <i className="fa-solid fa-file-excel mr-2"></i> Excel
+            </button>
             {/* CRM Filter Dropdown */}
             <div className="relative min-w-[180px]">
               <i className="fa-solid fa-user-tie absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
